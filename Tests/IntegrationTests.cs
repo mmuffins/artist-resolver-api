@@ -84,6 +84,8 @@ namespace Tests
                 PropertyNameCaseInsensitive = true,
             };
 
+            // Get artists from previous test and delete all but one
+
             var initialArtist = JsonSerializer.Deserialize<IEnumerable<Artist>>(await initialResponse.Content.ReadAsStringAsync(), JsonOptions).ToList();
             Assert.Equal(2, initialArtist.Count());
 
@@ -99,14 +101,21 @@ namespace Tests
             // Verify
             var httpResponse = await client.GetAsync(endpoint);
             httpResponse.EnsureSuccessStatusCode();
-
-            // Deserialize and examine results.
             var verifyList = JsonSerializer.Deserialize<IEnumerable<Artist>>(await httpResponse.Content.ReadAsStringAsync(), JsonOptions).ToList();
 
             Assert.Single(verifyList);
             Assert.Equal(keepArtist.Id, verifyList.First().Id);
-        }
 
+            // Delete last artist
+            var deleteLastResponse = await client.DeleteAsync($"{endpoint}/{keepArtist.Id}");
+            deleteLastResponse.EnsureSuccessStatusCode();
+
+            var emptyResponse = await client.GetAsync(endpoint);
+            emptyResponse.EnsureSuccessStatusCode();
+
+            var emptyResponseObj = JsonSerializer.Deserialize<IEnumerable<Artist>>(await emptyResponse.Content.ReadAsStringAsync(), JsonOptions);
+            Assert.Empty(emptyResponseObj);
+        }
     }
 }
 
