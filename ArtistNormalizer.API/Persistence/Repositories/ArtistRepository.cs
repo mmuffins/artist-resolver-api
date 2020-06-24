@@ -20,5 +20,15 @@ namespace ArtistNormalizer.API.Persistence.Repositories
         {
             await context.Artists.AddAsync(artist);
         }
+
+        public async Task<Artist> FindByIdAsync(int id)
+        {
+            return await context.Artists.FindAsync(id);
+        }
+
+        public void Remove(Artist artist)
+        {
+            context.Artists.Remove(artist);
+        }
     }
 }

@@ -8,5 +8,7 @@ namespace ArtistNormalizer.API.Domain.Repositories
     {
         Task<IEnumerable<Artist>> ListAsync();
         Task AddAsync(Artist artist);
+        Task<Artist> FindByIdAsync(int id);
+        void Remove(Artist artist);
     }
 }

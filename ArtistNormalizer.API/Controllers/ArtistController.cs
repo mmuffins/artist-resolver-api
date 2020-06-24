@@ -45,5 +45,17 @@ namespace ArtistNormalizer.API.Controllers
             var artistResource = mapper.Map<Artist, ArtistResource>(result.Artist);
             return Ok(artistResource);
         }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteAsync(int id)
+        {
+            var result = await artistService.DeleteAsync(id);
+
+            if (!result.Success)
+                return BadRequest(result.Message);
+
+            var categoryResource = mapper.Map<Artist, ArtistResource>(result.Artist);
+            return Ok(categoryResource);
+        }
     }
 }

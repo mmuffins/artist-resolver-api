@@ -24,19 +24,40 @@ namespace ArtistNormalizer.API.Services
             return await this.artistRepository.ListAsync();
         }
 
-        public async Task<SaveArtistResponse> SaveAsync(Artist artist)
+        public async Task<ArtistResponse> SaveAsync(Artist artist)
         {
             try
             {
                 await artistRepository.AddAsync(artist);
                 await unitOfWork.CompleteAsync();
 
-                return new SaveArtistResponse(artist);
+                return new ArtistResponse(artist);
             }
             catch (Exception ex)
             {
                 // Do some logging stuff
-                return new SaveArtistResponse($"An error occurred when saving the artist: {ex.Message}");
+                return new ArtistResponse($"An error occurred when saving the artist: {ex.Message}");
+            }
+        }
+
+        public async Task<ArtistResponse> DeleteAsync(int id)
+        {
+            var existingCategory = await artistRepository.FindByIdAsync(id);
+
+            if (existingCategory == null)
+                return new ArtistResponse("Category not found.");
+
+            try
+            {
+                artistRepository.Remove(existingCategory);
+                await unitOfWork.CompleteAsync();
+
+                return new ArtistResponse(existingCategory);
+            }
+            catch (Exception ex)
+            {
+                // Do some logging stuff
+                return new ArtistResponse($"An error occurred when deleting the category: {ex.Message}");
             }
         }
     }

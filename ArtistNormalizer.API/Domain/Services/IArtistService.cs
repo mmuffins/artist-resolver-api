@@ -8,6 +8,7 @@ namespace ArtistNormalizer.API.Domain.Services
     public interface IArtistService
     {
         Task<IEnumerable<Artist>> ListAsync();
-        Task<SaveArtistResponse> SaveAsync(Artist artist);
+        Task<ArtistResponse> SaveAsync(Artist artist);
+        Task<ArtistResponse> DeleteAsync(int id);
     }
 }
