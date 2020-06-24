@@ -1,16 +1,18 @@
-﻿using System.Collections.Generic;
+﻿
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ArtistNormalizer.API.Domain.Models
 {
-    public class Artist
+    public class Alias
     {
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
         [Required]
         public string Name { get; set; }
-        public IList<Alias> Aliases { get; set; } = new List<Alias>();
+        [Required]
+        public int ArtistId { get; set; }
+        public Artist Artist { get; set; }
 
         public override string ToString()
         {

@@ -2,7 +2,7 @@
 
 namespace ArtistNormalizer.API.Resources
 {
-    public class SaveArtistResource
+    public class SaveAliasResource
     {
         [Required]
         public string Name { get; set; }

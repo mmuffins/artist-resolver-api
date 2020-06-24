@@ -21,7 +21,17 @@ namespace ArtistNormalizer.API.Services
 
         public async Task<IEnumerable<Artist>> ListAsync()
         {
-            return await this.artistRepository.ListAsync();
+            return await artistRepository.ListAsync();
+        }
+
+        public async Task<Artist> FindByIdAsync(int id)
+        {
+            return await artistRepository.FindByIdAsync(id);
+        }
+
+        public async Task<Artist> FindByNameAsync(string name)
+        {
+            return await artistRepository.FindByNameAsync(name);
         }
 
         public async Task<ArtistResponse> SaveAsync(Artist artist)
@@ -36,28 +46,28 @@ namespace ArtistNormalizer.API.Services
             catch (Exception ex)
             {
                 // Do some logging stuff
-                return new ArtistResponse($"An error occurred when saving the artist: {ex.Message}");
+                return new ArtistResponse($"An error occurred when saving artist: {ex.Message}");
             }
         }
 
         public async Task<ArtistResponse> DeleteAsync(int id)
         {
-            var existingCategory = await artistRepository.FindByIdAsync(id);
+            var existingArtist = await artistRepository.FindByIdAsync(id);
 
-            if (existingCategory == null)
-                return new ArtistResponse("Category not found.");
+            if (existingArtist == null)
+                return new ArtistResponse("Artist not found.");
 
             try
             {
-                artistRepository.Remove(existingCategory);
+                artistRepository.Remove(existingArtist);
                 await unitOfWork.CompleteAsync();
 
-                return new ArtistResponse(existingCategory);
+                return new ArtistResponse(existingArtist);
             }
             catch (Exception ex)
             {
                 // Do some logging stuff
-                return new ArtistResponse($"An error occurred when deleting the category: {ex.Message}");
+                return new ArtistResponse($"An error occurred when deleting artist: {ex.Message}");
             }
         }
     }

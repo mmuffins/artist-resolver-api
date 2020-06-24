@@ -26,7 +26,22 @@ namespace ArtistNormalizer.API.Controllers
         {
             var artists = await artistService.ListAsync();
             var resources = mapper.Map<IEnumerable<Artist>, IEnumerable<ArtistResource>>(artists);
+            return resources;
+        }
 
+        [HttpGet("id/{id}")]
+        public async Task<ArtistResource> FindByIdAsync(int id)
+        {
+            var artist = await artistService.FindByIdAsync(id);
+            var resources = mapper.Map<Artist, ArtistResource>(artist);
+            return resources;
+        }
+
+        [HttpGet("name/{name}")]
+        public async Task<ArtistResource> FindByNameAsync(string name)
+        {
+            var artist = await artistService.FindByNameAsync(name);
+            var resources = mapper.Map<Artist, ArtistResource>(artist);
             return resources;
         }
 
@@ -46,7 +61,7 @@ namespace ArtistNormalizer.API.Controllers
             return Ok(artistResource);
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("id/{id}")]
         public async Task<IActionResult> DeleteAsync(int id)
         {
             var result = await artistService.DeleteAsync(id);

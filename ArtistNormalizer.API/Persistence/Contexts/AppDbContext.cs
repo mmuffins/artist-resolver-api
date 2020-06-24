@@ -6,6 +6,7 @@ namespace ArtistNormalizer.API.Persistence.Contexts
     public class AppDbContext : DbContext
     {
         public DbSet<Artist> Artists { get; set; }
+        public DbSet<Alias> Aliases { get; set; }
 
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
@@ -15,13 +16,12 @@ namespace ArtistNormalizer.API.Persistence.Contexts
 
             builder.Entity<Artist>().ToTable("Artists");
             builder.Entity<Artist>().HasKey(p => p.Id);
-            builder.Entity<Artist>().Property(p => p.Id).IsRequired().ValueGeneratedOnAdd();
+            builder.Entity<Artist>().HasIndex(d => d.Name).IsUnique();
+            builder.Entity<Artist>().HasMany(p => p.Aliases).WithOne(p => p.Artist).HasForeignKey(p => p.ArtistId);
 
-            //builder.Entity<Artist>().HasData
-            //(
-            //    new Artist { Id = 100, Name = "Artist 1" }, // Id set manually due to in-memory provider
-            //    new Artist { Id = 101, Name = "Artist 2" }
-            //);
+            builder.Entity<Alias>().ToTable("Aliases");
+            builder.Entity<Alias>().HasKey(p => p.Id);
+            builder.Entity<Alias>().HasIndex(d => d.Name).IsUnique();
         }
     }
 }

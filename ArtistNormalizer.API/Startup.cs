@@ -47,11 +47,12 @@ namespace ArtistNormalizer.API
                 });
             }
 
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IArtistRepository, ArtistRepository>();
             services.AddScoped<IArtistService, ArtistService>();
-            services.AddScoped<IUnitOfWork, UnitOfWork>();
+            services.AddScoped<IAliasRepository, AliasRepository>();
+            services.AddScoped<IAliasService, AliasService>();
             services.AddAutoMapper(typeof(Startup));
-
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
