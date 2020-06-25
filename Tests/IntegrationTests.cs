@@ -301,8 +301,6 @@ namespace Tests
             addPostResponse.EnsureSuccessStatusCode();
 
             // verify that alias was added to artist
-            // Verify that all aliases have been created
-
             var aliasVerifyListResponse = await client.GetAsync(aliasEndpoint);
             aliasVerifyListResponse.EnsureSuccessStatusCode();
 
@@ -319,10 +317,42 @@ namespace Tests
             await Cleanup();
             await SeedData(1, 3);
             var aliasEndpoint = "/api/alias";
+            var artistEndpoint = "/api/artist";
 
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
+            // get all elements
+            var allArtistsResponse = await client.GetAsync(artistEndpoint);
+            allArtistsResponse.EnsureSuccessStatusCode();
+            var artistList = JsonSerializer.Deserialize<IEnumerable<ArtistResource>>(await allArtistsResponse.Content.ReadAsStringAsync(), JsonOptions)
+                .ToList();
 
-            throw new NotImplementedException();
+            // verify original object count
+            Assert.Single(artistList);
+
+            var artist = artistList[0];
+            Assert.Equal(3, artist.Aliases.Count());
+
+            var keepAlias1 = artist.Aliases[0];
+            var keepAlias2 = artist.Aliases[2];
+            var deleteAlias = artist.Aliases[1];
+
+            // delete alias
+            var deleteResponse = await client.DeleteAsync($"{aliasEndpoint}/id/{deleteAlias.Id}");
+            deleteResponse.EnsureSuccessStatusCode();
+
+            // verify correct response
+            var deleteResponseObj = JsonSerializer.Deserialize<AliasResource>(await deleteResponse.Content.ReadAsStringAsync(), JsonOptions);
+            Assert.Equal(deleteAlias.Id, deleteResponseObj.Id);
+
+            // verify remaining aliases
+            var checkArtistsResponse = await client.GetAsync(artistEndpoint);
+            checkArtistsResponse.EnsureSuccessStatusCode();
+            var checkArtist = JsonSerializer.Deserialize<IEnumerable<ArtistResource>>(await checkArtistsResponse.Content.ReadAsStringAsync(), JsonOptions)
+                .First();
+
+            Assert.Single(checkArtist.Aliases.Where(x => x.Id == keepAlias1.Id));
+            Assert.Single(checkArtist.Aliases.Where(x => x.Id == keepAlias2.Id));
         }
 
         [Fact]

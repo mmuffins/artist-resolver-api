@@ -92,7 +92,7 @@ namespace ArtistNormalizer.API.Controllers
             return Ok(aliasResource);
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("id/{id}")]
         public async Task<IActionResult> DeleteAsync(int id)
         {
             var result = await aliasService.DeleteAsync(id);
