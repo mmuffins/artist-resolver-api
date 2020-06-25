@@ -29,7 +29,9 @@ namespace ArtistNormalizer.API
         public void ConfigureServices(IServiceCollection services)
         {
             //services.AddControllers();
-            services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_3_0);
+            services.AddMvc()
+                .AddControllersAsServices()
+                .SetCompatibilityVersion(CompatibilityVersion.Version_3_0);
 
             if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "unittest")
             {

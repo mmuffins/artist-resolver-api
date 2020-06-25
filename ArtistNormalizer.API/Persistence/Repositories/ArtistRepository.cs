@@ -14,7 +14,9 @@ namespace ArtistNormalizer.API.Persistence.Repositories
 
         public async Task<IEnumerable<Artist>> ListAsync()
         {
-            return await context.Artists.ToListAsync();
+            return await context.Artists
+                .Include(a => a.Aliases)
+                .ToListAsync();
         }
 
         public async Task AddAsync(Artist artist)
@@ -24,14 +26,16 @@ namespace ArtistNormalizer.API.Persistence.Repositories
 
         public async Task<Artist> FindByIdAsync(int id)
         {
-            return await context.Artists.FindAsync(id);
+            return await context.Artists
+                .Include(a => a.Aliases)
+                .SingleOrDefaultAsync(a => a.Id == id);
         }
 
         public async Task<Artist> FindByNameAsync(string name)
         {
             return await context.Artists
-                .Where(a => a.Name == name)
-                .FirstAsync();
+                .Include(a => a.Aliases)
+                .SingleOrDefaultAsync(a => a.Name == name);
         }
 
         public void Remove(Artist artist)

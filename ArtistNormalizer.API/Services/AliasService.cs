@@ -12,11 +12,13 @@ namespace ArtistNormalizer.API.Services
     {
         private readonly IAliasRepository aliasRepository;
         private readonly IUnitOfWork unitOfWork;
+        //private readonly IArtistService artistService;
 
         public AliasService(IAliasRepository aliasRepository, IUnitOfWork unitOfWork)
         {
             this.aliasRepository = aliasRepository;
             this.unitOfWork = unitOfWork;
+            //this.artistService = artistService;
         }
 
         public async Task<IEnumerable<Alias>> ListAsync()
@@ -59,6 +61,16 @@ namespace ArtistNormalizer.API.Services
                 // Do some logging stuff
                 return new AliasResponse($"An error occurred when deleting alias: {ex.Message}");
             }
+        }
+
+        public async Task<Alias> FindByIdAsync(int id)
+        {
+            return await aliasRepository.FindByIdAsync(id);
+        }
+
+        public async Task<Alias> FindByNameAsync(string name)
+        {
+            return await aliasRepository.FindByNameAsync(name);
         }
     }
 }

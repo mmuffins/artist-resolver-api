@@ -8,6 +8,8 @@ namespace ArtistNormalizer.API.Domain.Services
     public interface IAliasService
     {
         Task<IEnumerable<Alias>> ListAsync();
+        Task<Alias> FindByIdAsync(int id);
+        Task<Alias> FindByNameAsync(string name);
         Task<AliasResponse> SaveAsync(Alias alias);
         Task<AliasResponse> DeleteAsync(int id);
     }

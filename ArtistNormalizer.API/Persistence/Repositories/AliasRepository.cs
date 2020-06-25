@@ -20,19 +20,23 @@ namespace ArtistNormalizer.API.Persistence.Repositories
 
         public async Task<Alias> FindByIdAsync(int id)
         {
-            return await context.Aliases.FindAsync(id);
+            return await context.Aliases
+                .Include(a => a.Artist)
+                .SingleOrDefaultAsync(a => a.Id == id);
         }
 
         public async Task<Alias> FindByNameAsync(string name)
         {
             return await context.Aliases
-                .Where(a => a.Name == name)
-                .FirstAsync();
+                .Include(a => a.Artist)
+                .SingleOrDefaultAsync(a => a.Name == name);
         }
 
         public async Task<IEnumerable<Alias>> ListAsync()
         {
-            return await context.Aliases.ToListAsync();
+            return await context.Aliases
+                .Include(a => a.Artist)
+                .ToListAsync();
         }
 
         public void Remove(Alias artist)

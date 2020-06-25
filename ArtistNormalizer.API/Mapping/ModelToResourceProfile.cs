@@ -9,7 +9,9 @@ namespace ArtistNormalizer.API.Mapping
         public ModelToResourceProfile()
         {
             CreateMap<Artist, ArtistResource>();
-            CreateMap<Alias, AliasResource>();
+
+            CreateMap<Alias, AliasResource>()
+                .ForMember(dest => dest.Artist, opt => opt.MapFrom(src => src.Artist.Name));
         }
     }
 }

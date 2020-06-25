@@ -1,5 +1,6 @@
 ﻿using ArtistNormalizer.API;
 using ArtistNormalizer.API.Domain.Models;
+using ArtistNormalizer.API.Resources;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 using SQLitePCL;
 using System;
@@ -34,14 +35,13 @@ namespace Tests
             var artistEndpoint = "/api/artist";
             var httpResponse = await client.GetAsync(artistEndpoint);
             httpResponse.EnsureSuccessStatusCode();
-            var artistList = JsonSerializer.Deserialize<IEnumerable<Artist>>(await httpResponse.Content.ReadAsStringAsync(), jsonOptions);
+            var artistList = JsonSerializer.Deserialize<IEnumerable<ArtistResource>>(await httpResponse.Content.ReadAsStringAsync(), jsonOptions);
 
             foreach (var artist in artistList)
             {
-                var deleteResponse = await client.DeleteAsync($"{artistEndpoint}/{artist.Id}");
+                var deleteResponse = await client.DeleteAsync($"{artistEndpoint}/id/{artist.Id}");
                 deleteResponse.EnsureSuccessStatusCode();
             }
-
 
             var checkEmptyArtist = await client.GetAsync(artistEndpoint);
             checkEmptyArtist.EnsureSuccessStatusCode();
@@ -80,8 +80,24 @@ namespace Tests
 
         private async Task SeedData(int artistCount, int aliasCount)
         {
-            var aritsts = GenerateArtists(artistCount, aliasCount);
+            var JsonOptions = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+            };
 
+            var aliasEndpoint = "/api/alias";
+
+            var artists = GenerateArtists(artistCount, aliasCount);
+
+            foreach (var artist in artists)
+            {
+                foreach (var alias in artist.Aliases)
+                {
+                    var jsonString = new StringContent(JsonSerializer.Serialize(new { Alias = alias.Name, Artist = artist.Name }), Encoding.UTF8, "application/json");
+                    var postResponse = await client.PostAsync(aliasEndpoint, jsonString);
+                    postResponse.EnsureSuccessStatusCode();
+                }
+            }
         }
 
         [Fact]
@@ -94,10 +110,7 @@ namespace Tests
             // Add test data
             var artList = GenerateArtists(2, 1);
 
-            var JsonOptions = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true,
-            };
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
             foreach (var art in artList)
             {
@@ -105,7 +118,7 @@ namespace Tests
                 var postResponse = await client.PostAsync(artistEndpoint, jsonString);
                 postResponse.EnsureSuccessStatusCode();
 
-                var postResponseObj = JsonSerializer.Deserialize<Artist>(await postResponse.Content.ReadAsStringAsync(), JsonOptions);
+                var postResponseObj = JsonSerializer.Deserialize<ArtistResource>(await postResponse.Content.ReadAsStringAsync(), JsonOptions);
                 Assert.Equal(art.Name, postResponseObj.Name);
             }
 
@@ -114,124 +127,115 @@ namespace Tests
             httpResponse.EnsureSuccessStatusCode();
 
             // Deserialize and examine results.
-            var verifyList = JsonSerializer.Deserialize<IEnumerable<Artist>>(await httpResponse.Content.ReadAsStringAsync(), JsonOptions);
+            var verifyList = JsonSerializer.Deserialize<IEnumerable<ArtistResource>>(await httpResponse.Content.ReadAsStringAsync(), JsonOptions);
 
-            Assert.Collection(verifyList, item => Assert.Contains(artList[0].Name, item.Name),
-                                            item => Assert.Contains(artList[1].Name, item.Name));
+            Assert.Single(verifyList.Where(x => x.Name.Equals(artList[0].Name)));
+            Assert.Single(verifyList.Where(x => x.Name.Equals(artList[1].Name)));
         }
 
         [Fact]
         public async Task Artist_Delete()
         {
             var artistEndpoint = "/api/artist";
-            var initialResponse = await client.GetAsync(artistEndpoint);
-            initialResponse.EnsureSuccessStatusCode();
 
-            var JsonOptions = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true,
-            };
+            // Add test data
+            await Cleanup();
+            int seedCount = 3;
+            await SeedData(seedCount, 2);
 
-            // Get artists from previous test and delete all but one
-            var initialArtist = JsonSerializer.Deserialize<IEnumerable<Artist>>(await initialResponse.Content.ReadAsStringAsync(), JsonOptions).ToList();
-            Assert.Equal(2, initialArtist.Count());
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
-            var deleteArtist = initialArtist[0];
-            var keepArtist = initialArtist[1];
+            // get all elements
+            var allArtistsResponse = await client.GetAsync(artistEndpoint);
+            allArtistsResponse.EnsureSuccessStatusCode();
+            var allArtists = JsonSerializer.Deserialize<IEnumerable<ArtistResource>>(await allArtistsResponse.Content.ReadAsStringAsync(), JsonOptions)
+                .ToList();
+            Assert.Equal(seedCount, allArtists.Count());
 
-            var deleteResponse = await client.DeleteAsync($"{artistEndpoint}/id/{deleteArtist.Id}");
-            deleteResponse.EnsureSuccessStatusCode();
+            var art0 = allArtists[0];
+            var art1 = allArtists[1];
+            var art2 = allArtists[2];
 
-            var deleteResponseObj = JsonSerializer.Deserialize<Artist>(await deleteResponse.Content.ReadAsStringAsync(), JsonOptions);
-            Assert.Equal(deleteArtist.Id, deleteResponseObj.Id);
+            // delete artist
+            var art1DeleteResponse = await client.DeleteAsync($"{artistEndpoint}/id/{art1.Id}");
+            art1DeleteResponse.EnsureSuccessStatusCode();
 
-            // Verify
-            var httpResponse = await client.GetAsync(artistEndpoint);
-            httpResponse.EnsureSuccessStatusCode();
-            var verifyList = JsonSerializer.Deserialize<IEnumerable<Artist>>(await httpResponse.Content.ReadAsStringAsync(), JsonOptions).ToList();
+            // verify correct response
+            var art1DeleteObj = JsonSerializer.Deserialize<ArtistResource>(await art1DeleteResponse.Content.ReadAsStringAsync(), JsonOptions);
+            Assert.Equal(art1.Id, art1DeleteObj.Id);
 
-            Assert.Single(verifyList);
-            Assert.Equal(keepArtist.Id, verifyList.First().Id);
+            // make sure that intended object was deleted and all other artists remain
+            var remainingArtistsResponse = await client.GetAsync(artistEndpoint);
+            var remainingArtists = JsonSerializer.Deserialize<IEnumerable<ArtistResource>>(await remainingArtistsResponse.Content.ReadAsStringAsync(), JsonOptions)
+                .ToList();
 
-            //// Delete last artist
-            //var deleteLastResponse = await client.DeleteAsync($"{artistEndpoint}/{keepArtist.Id}");
-            //deleteLastResponse.EnsureSuccessStatusCode();
+            Assert.Equal(2, remainingArtists.Count());
 
-            //var emptyResponse = await client.GetAsync(artistEndpoint);
-            //emptyResponse.EnsureSuccessStatusCode();
-
-            //var emptyResponseObj = JsonSerializer.Deserialize<IEnumerable<Artist>>(await emptyResponse.Content.ReadAsStringAsync(), JsonOptions);
-            //Assert.Empty(emptyResponseObj);
+            Assert.Single(remainingArtists.Where(x => x.Id.Equals(art0.Id)));
+            Assert.Single(remainingArtists.Where(x => x.Id.Equals(art2.Id)));
         }
 
         [Fact]
         public async Task Artist_FindById()
         {
-            await Cleanup();
-
             var artistEndpoint = "/api/artist";
 
             // Add test data
-            var artList = new List<Artist>();
-
-            artList.Add(new Artist()
-            {
-                Name = "New Artist 1"
-            });
-
-            artList.Add(new Artist()
-            {
-                Name = "New Artist 2"
-            });
-
-
-            var JsonOptions = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true,
-            };
-
-            foreach (var art in artList)
-            {
-                var jsonString = new StringContent(JsonSerializer.Serialize(new { Name = art.Name }), Encoding.UTF8, "application/json");
-                var postResponse = await client.PostAsync(artistEndpoint, jsonString);
-                postResponse.EnsureSuccessStatusCode();
-            }
+            await Cleanup();
+            await SeedData(5,2);
 
             // Verify that an invalid id returns nothing
-
             var verifyNotFoundResponse = await client.GetAsync($"{artistEndpoint}/id/999999");
             verifyNotFoundResponse.EnsureSuccessStatusCode();
 
             var verifyNotFoundString = await verifyNotFoundResponse.Content.ReadAsStringAsync();
-            //var verifyNotList = JsonSerializer.Deserialize<IEnumerable<Artist>>(await verifyNotFoundResponse.Content.ReadAsStringAsync(), JsonOptions);
             Assert.Empty(verifyNotFoundString);
+
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
             // get Id of all elements
             var allArtistsResponse = await client.GetAsync(artistEndpoint);
             allArtistsResponse.EnsureSuccessStatusCode();
-            var allArtistsList = JsonSerializer.Deserialize<IEnumerable<Artist>>(await allArtistsResponse.Content.ReadAsStringAsync(), JsonOptions)
+            var allArtistsList = JsonSerializer.Deserialize<IEnumerable<ArtistResource>>(await allArtistsResponse.Content.ReadAsStringAsync(), JsonOptions)
                 .ToList();
 
             // verify that findById returns correct results
-            var verifyArt1Response = await client.GetAsync($"{artistEndpoint}/id/{allArtistsList[0].Id}");
-            verifyArt1Response.EnsureSuccessStatusCode();
+            for (int i = 0; i < allArtistsList.Count; i++)
+            {
+                var verifyResponse = await client.GetAsync($"{artistEndpoint}/id/{allArtistsList[i].Id}");
+                verifyResponse.EnsureSuccessStatusCode();
 
-            var dde = await verifyArt1Response.Content.ReadAsStringAsync();
-
-            var verifyArt1 = JsonSerializer.Deserialize<Artist>(await verifyArt1Response.Content.ReadAsStringAsync(), JsonOptions);
-            Assert.Equal(allArtistsList[0].Name, verifyArt1.Name);
-
-            var verifyArt2Response = await client.GetAsync($"{artistEndpoint}/id/{allArtistsList[1].Id}");
-            verifyArt2Response.EnsureSuccessStatusCode();
-
-            var verifyArt2 = JsonSerializer.Deserialize<Artist>(await verifyArt2Response.Content.ReadAsStringAsync(), JsonOptions);
-            Assert.Equal(allArtistsList[1].Name, verifyArt2.Name);
+                var verifyArt = JsonSerializer.Deserialize<ArtistResource>(await verifyResponse.Content.ReadAsStringAsync(), JsonOptions);
+                Assert.Equal(allArtistsList[i].Name, verifyArt.Name);
+            }
         }
 
         [Fact]
         public async Task Artist_FindByName()
         {
-            throw new NotImplementedException();
+            var artistEndpoint = "/api/artist";
+
+            // Add test data
+            await Cleanup();
+            await SeedData(5, 2);
+
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // get Id of all elements
+            var allArtistsResponse = await client.GetAsync(artistEndpoint);
+            allArtistsResponse.EnsureSuccessStatusCode();
+            var allArtistsList = JsonSerializer.Deserialize<IEnumerable<ArtistResource>>(await allArtistsResponse.Content.ReadAsStringAsync(), JsonOptions)
+                .ToList();
+
+            // verify that findById returns correct results
+            for (int i = 0; i < allArtistsList.Count; i++)
+            {
+                var verifyResponse = await client.GetAsync($"{artistEndpoint}/name/{allArtistsList[i].Name}");
+                verifyResponse.EnsureSuccessStatusCode();
+
+                var verifyArt = JsonSerializer.Deserialize<ArtistResource>(await verifyResponse.Content.ReadAsStringAsync(), JsonOptions);
+                Assert.Equal(allArtistsList[i].Id, verifyArt.Id);
+            }
         }
 
         [Fact]
@@ -241,45 +245,83 @@ namespace Tests
             var aliasEndpoint = "/api/alias";
 
             // Create new aliases
-            var aliasList = GenerateArtists(1, 2);
+            var aliasList = GenerateArtists(1, 3);
             var parentArtist = aliasList.First();
 
-            var JsonOptions = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true,
-            };
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
             foreach (var alias in parentArtist.Aliases)
             {
-                var dde = JsonSerializer.Serialize(new { Alias = alias.Name, Artist = parentArtist.Name });
                 var jsonString = new StringContent(JsonSerializer.Serialize(new { Alias = alias.Name, Artist = parentArtist.Name }), Encoding.UTF8, "application/json");
                 var postResponse = await client.PostAsync(aliasEndpoint, jsonString);
                 postResponse.EnsureSuccessStatusCode();
 
-                var postResponseObj = JsonSerializer.Deserialize<Alias>(await postResponse.Content.ReadAsStringAsync(), JsonOptions);
+                var postResponseObj = JsonSerializer.Deserialize<AliasResource>(await postResponse.Content.ReadAsStringAsync(), JsonOptions);
                 Assert.Equal(alias.Name, postResponseObj.Name);
-                Assert.Equal(alias.Artist.Name, postResponseObj.Artist.Name);
+                Assert.Equal(parentArtist.Name, postResponseObj.Artist);
             }
 
             // Verify that all aliases have been created
             var aliasVerifyListResponse = await client.GetAsync(aliasEndpoint);
             aliasVerifyListResponse.EnsureSuccessStatusCode();
 
-            var aliasVerifyList = JsonSerializer.Deserialize<IEnumerable<Alias>>(await aliasVerifyListResponse.Content.ReadAsStringAsync(), JsonOptions);
+            var aliasVerifyList = JsonSerializer.Deserialize<IEnumerable<AliasResource>>(await aliasVerifyListResponse.Content.ReadAsStringAsync(), JsonOptions);
 
-            Assert.Collection(aliasVerifyList, item => Assert.Contains(parentArtist.Aliases[0].Name, item.Name),
-                                            item => Assert.Contains(parentArtist.Aliases[1].Name, item.Name));
+            foreach (var alias in parentArtist.Aliases)
+            {
+                Assert.Single(aliasVerifyList.Where(x => x.Name.Equals(alias.Name)));
+            }
         }
 
         [Fact]
         public async Task Alias_Post_AddToExisting()
         {
-            throw new NotImplementedException();
+            var aliasEndpoint = "/api/alias";
+
+            // Add test data
+            await Cleanup();
+            var artistList = GenerateArtists(1, 1);
+
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            var artist = artistList[0];
+            var originalAlias = artist.Aliases[0];
+
+            var jsonString = new StringContent(JsonSerializer.Serialize(new { Alias = originalAlias.Name, Artist = artist.Name }), Encoding.UTF8, "application/json");
+            var postResponse = await client.PostAsync(aliasEndpoint, jsonString);
+            postResponse.EnsureSuccessStatusCode();
+
+            // Add additional alias
+            var additionalAlias = new Alias()
+            {
+                Name = "New Alias"
+            };
+            var addJsonString = new StringContent(JsonSerializer.Serialize(new { Alias = additionalAlias.Name, Artist = artist.Name }), Encoding.UTF8, "application/json");
+            var addPostResponse = await client.PostAsync(aliasEndpoint, addJsonString);
+            addPostResponse.EnsureSuccessStatusCode();
+
+            // verify that alias was added to artist
+            // Verify that all aliases have been created
+
+            var aliasVerifyListResponse = await client.GetAsync(aliasEndpoint);
+            aliasVerifyListResponse.EnsureSuccessStatusCode();
+
+            var aliasVerifyList = JsonSerializer.Deserialize<IEnumerable<AliasResource>>(await aliasVerifyListResponse.Content.ReadAsStringAsync(), JsonOptions);
+
+            Assert.Single(aliasVerifyList.Where(x => x.Name.Equals(originalAlias.Name)));
+            Assert.Single(aliasVerifyList.Where(x => x.Name.Equals(additionalAlias.Name)));
         }
 
         [Fact]
         public async Task Alias_Delete()
         {
+            // Add test data
+            await Cleanup();
+            await SeedData(1, 3);
+            var aliasEndpoint = "/api/alias";
+
+
+
             throw new NotImplementedException();
         }
 
@@ -288,6 +330,20 @@ namespace Tests
         {
             throw new NotImplementedException();
         }
+
+        [Fact]
+        public async Task Alias_Cleanup_After_Parent_Artist_Removed()
+        {
+            throw new NotImplementedException();
+        }
+
+        [Fact]
+        public async Task Artist_Cleanup_After_Last_Alias_Removed()
+        {
+            throw new NotImplementedException();
+        }
+
+
     }
 }
 
