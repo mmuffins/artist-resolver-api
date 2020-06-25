@@ -358,19 +358,146 @@ namespace Tests
         [Fact]
         public async Task Alias_FindByName()
         {
-            throw new NotImplementedException();
+            var aliasEndpoint = "/api/alias";
+
+            // Add test data
+            await Cleanup();
+            await SeedData(2, 3);
+
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // get Id of all elements
+            var allAliasesResponse = await client.GetAsync(aliasEndpoint);
+            allAliasesResponse.EnsureSuccessStatusCode();
+            var allAliases = JsonSerializer.Deserialize<IEnumerable<ArtistResource>>(await allAliasesResponse.Content.ReadAsStringAsync(), JsonOptions)
+                .ToList();
+
+            // verify that findById returns correct results
+            for (int i = 0; i < allAliases.Count; i++)
+            {
+                var verifyResponse = await client.GetAsync($"{aliasEndpoint}/name/{allAliases[i].Name}");
+                verifyResponse.EnsureSuccessStatusCode();
+
+                var verifyAlias = JsonSerializer.Deserialize<AliasResource>(await verifyResponse.Content.ReadAsStringAsync(), JsonOptions);
+                Assert.Equal(allAliases[i].Id, verifyAlias.Id);
+            }
+        }
+
+        [Fact]
+        public async Task Alias_FindById()
+        {
+            var aliasEndpoint = "/api/alias";
+
+            // Add test data
+            await Cleanup();
+            await SeedData(2, 3);
+
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // get Id of all elements
+            var allAliasesResponse = await client.GetAsync(aliasEndpoint);
+            allAliasesResponse.EnsureSuccessStatusCode();
+            var allAliases = JsonSerializer.Deserialize<IEnumerable<ArtistResource>>(await allAliasesResponse.Content.ReadAsStringAsync(), JsonOptions)
+                .ToList();
+
+            // verify that findById returns correct results
+            for (int i = 0; i < allAliases.Count; i++)
+            {
+                var verifyResponse = await client.GetAsync($"{aliasEndpoint}/id/{allAliases[i].Id}");
+                verifyResponse.EnsureSuccessStatusCode();
+
+                var verifyAlias = JsonSerializer.Deserialize<AliasResource>(await verifyResponse.Content.ReadAsStringAsync(), JsonOptions);
+                Assert.Equal(allAliases[i].Name, verifyAlias.Name);
+            }
         }
 
         [Fact]
         public async Task Alias_Cleanup_After_Parent_Artist_Removed()
         {
-            throw new NotImplementedException();
+            // Add test data
+            await Cleanup();
+            await SeedData(1, 2);
+            var aliasEndpoint = "/api/alias";
+            var artistEndpoint = "/api/artist";
+
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // get all elements
+            var allArtistsResponse = await client.GetAsync(artistEndpoint);
+            allArtistsResponse.EnsureSuccessStatusCode();
+            var artistList = JsonSerializer.Deserialize<IEnumerable<ArtistResource>>(await allArtistsResponse.Content.ReadAsStringAsync(), JsonOptions)
+                .ToList();
+
+            // verify original object count
+            Assert.Single(artistList);
+            var deleteArtist = artistList[0];
+            Assert.Equal(2, deleteArtist.Aliases.Count());
+
+            // delete artist
+            var deleteArtistRequest = await client.DeleteAsync($"{artistEndpoint}/id/{deleteArtist.Id}");
+            deleteArtistRequest.EnsureSuccessStatusCode();
+
+            // verify correct response
+            var deleteArtistResponse = JsonSerializer.Deserialize<ArtistResource>(await deleteArtistRequest.Content.ReadAsStringAsync(), JsonOptions);
+            Assert.Equal(deleteArtist.Id, deleteArtistResponse.Id);
+
+            // verify artist were deleted
+            var checkRemainingArtists = await client.GetAsync(artistEndpoint);
+            checkRemainingArtists.EnsureSuccessStatusCode();
+            var checkArtist = JsonSerializer.Deserialize<IEnumerable<ArtistResource>>(await checkRemainingArtists.Content.ReadAsStringAsync(), JsonOptions);
+            Assert.Empty(checkArtist);
+
+            // verify aliases were deleted
+            var checkRemainingAliases = await client.GetAsync(aliasEndpoint);
+            checkRemainingAliases.EnsureSuccessStatusCode();
+            var checkAlias = JsonSerializer.Deserialize<IEnumerable<AliasResource>>(await checkRemainingAliases.Content.ReadAsStringAsync(), JsonOptions);
+            Assert.Empty(checkAlias);
         }
 
         [Fact]
         public async Task Artist_Cleanup_After_Last_Alias_Removed()
         {
-            throw new NotImplementedException();
+            // Add test data
+            await Cleanup();
+            await SeedData(1, 2);
+            var aliasEndpoint = "/api/alias";
+            var artistEndpoint = "/api/artist";
+
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // get all elements
+            var allArtistsResponse = await client.GetAsync(artistEndpoint);
+            allArtistsResponse.EnsureSuccessStatusCode();
+            var artistList = JsonSerializer.Deserialize<IEnumerable<ArtistResource>>(await allArtistsResponse.Content.ReadAsStringAsync(), JsonOptions)
+                .ToList();
+
+            // verify original object count
+            Assert.Single(artistList);
+
+            var artist = artistList[0];
+            Assert.Equal(2, artist.Aliases.Count());
+
+
+            // delete aliases
+
+            foreach (var alias in artist.Aliases)
+            {
+                var deleteResponse = await client.DeleteAsync($"{aliasEndpoint}/id/{alias.Id}");
+                deleteResponse.EnsureSuccessStatusCode();
+            }
+
+            // verify aliases were deleted
+            var checkRemainingAliases = await client.GetAsync(aliasEndpoint);
+            checkRemainingAliases.EnsureSuccessStatusCode();
+            var checkAlias = JsonSerializer.Deserialize<IEnumerable<AliasResource>>(await checkRemainingAliases.Content.ReadAsStringAsync(), JsonOptions);
+            Assert.Empty(checkAlias);
+
+            // verify artist were deleted
+            var checkRemainingArtists = await client.GetAsync(artistEndpoint);
+            checkRemainingArtists.EnsureSuccessStatusCode();
+            var checkArtist = JsonSerializer.Deserialize<IEnumerable<ArtistResource>>(await checkRemainingArtists.Content.ReadAsStringAsync(), JsonOptions);
+            Assert.Empty(checkArtist);
+
         }
 
 

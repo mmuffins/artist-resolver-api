@@ -37,7 +37,7 @@ namespace ArtistNormalizer.API
             {
                 services.AddDbContext<AppDbContext>(options =>
                 {
-                    options.UseInMemoryDatabase("supermarket-api-in-memory");
+                    options.UseInMemoryDatabase("artistnormalizer-api-in-memory");
                 });
             }
             else
