@@ -13,15 +13,22 @@ namespace ArtistNormalizer.API.Persistence.Contexts
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
+            builder.Entity<Artist>(e =>
+            {
+                e.ToTable("Artists");
+                e.HasKey(p => p.Id);
+                e.HasIndex(p => p.Name).IsUnique();
+                e.Property(x => x.Name).HasColumnType("TEXT COLLATE NOCASE");
+                e.HasMany(p => p.Aliases).WithOne(p => p.Artist).HasForeignKey(p => p.ArtistId);
+            });
 
-            builder.Entity<Artist>().ToTable("Artists");
-            builder.Entity<Artist>().HasKey(p => p.Id);
-            builder.Entity<Artist>().HasIndex(d => d.Name).IsUnique();
-            builder.Entity<Artist>().HasMany(p => p.Aliases).WithOne(p => p.Artist).HasForeignKey(p => p.ArtistId);
-
-            builder.Entity<Alias>().ToTable("Aliases");
-            builder.Entity<Alias>().HasKey(p => p.Id);
-            builder.Entity<Alias>().HasIndex(d => d.Name).IsUnique();
+            builder.Entity<Alias>(e => {
+                e.ToTable("Aliases");
+                e.HasKey(p => p.Id);
+                e.HasIndex(p => p.Name).IsUnique();
+                e.Property(p => p.Name).HasConversion(v => v.ToLowerInvariant(), v => v);
+                e.Property(x => x.Name).HasColumnType("TEXT COLLATE NOCASE");
+            });
         }
     }
 }

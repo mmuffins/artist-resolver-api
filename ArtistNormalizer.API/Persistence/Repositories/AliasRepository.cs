@@ -4,7 +4,6 @@ using ArtistNormalizer.API.Domain.Repositories;
 using ArtistNormalizer.API.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace ArtistNormalizer.API.Persistence.Repositories
