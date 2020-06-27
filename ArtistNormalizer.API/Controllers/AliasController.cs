@@ -4,9 +4,8 @@ using ArtistNormalizer.API.Extensions;
 using ArtistNormalizer.API.Resources;
 using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
-using System;
+using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
-using System.Runtime.Loader;
 using System.Threading.Tasks;
 
 namespace ArtistNormalizer.API.Controllers
@@ -17,17 +16,20 @@ namespace ArtistNormalizer.API.Controllers
         private readonly IAliasService aliasService;
         private readonly IMapper mapper;
         private readonly IArtistService artistService;
+        private readonly ILogger logger;
 
-        public AliasController(IAliasService aliasService, IArtistService artistService, IMapper mapper)
+        public AliasController(IAliasService aliasService, IArtistService artistService, IMapper mapper, ILogger<ArtistController> logger)
         {
             this.aliasService = aliasService;
             this.artistService = artistService;
             this.mapper = mapper;
+            this.logger = logger;
         }
 
         [HttpGet]
         public async Task<IEnumerable<AliasResource>> GetAllAsync()
         {
+            logger.LogInformation("GET /alias");
             var aliases = await aliasService.ListAsync();
             var resources = mapper.Map<IEnumerable<Alias>, IEnumerable<AliasResource>>(aliases);
 
@@ -37,6 +39,7 @@ namespace ArtistNormalizer.API.Controllers
         [HttpGet("name/{name}")]
         public async Task<AliasResource> FindByNameAsync(string name)
         {
+            logger.LogInformation("GET /alias/name"+name);
             var alias = await aliasService.FindByNameAsync(name);
             var resource = mapper.Map<Alias, AliasResource>(alias);
             return resource;
@@ -45,6 +48,7 @@ namespace ArtistNormalizer.API.Controllers
         [HttpGet("id/{id}")]
         public async Task<AliasResource> FindByIdAsync(int id)
         {
+            logger.LogInformation("GET /alias/id/" + id);
             var alias = await aliasService.FindByIdAsync(id);
             var resource = mapper.Map<Alias, AliasResource>(alias);
             return resource;
@@ -53,6 +57,7 @@ namespace ArtistNormalizer.API.Controllers
         [HttpPost]
         public async Task<IActionResult> PostAsync([FromBody] SaveAliasResource resource)
         {
+            logger.LogInformation("POST /alias/(Alias:" + resource.Alias + ", Artist:" + resource.Artist +")");
             if (!ModelState.IsValid)
                 return BadRequest(ModelState.GetErrorMessages());
 
@@ -95,6 +100,7 @@ namespace ArtistNormalizer.API.Controllers
         [HttpDelete("id/{id}")]
         public async Task<IActionResult> DeleteAsync(int id)
         {
+            logger.LogInformation("DELETE /alias/id/" + id);
             var result = await aliasService.DeleteAsync(id);
             if (!result.Success)
                 return BadRequest(result.Message);
