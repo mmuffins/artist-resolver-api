@@ -86,14 +86,22 @@ namespace Tests
             };
 
             var aliasEndpoint = "/api/alias";
+            var artistEndpoint = "/api/artist";
 
             var artists = GenerateArtists(artistCount, aliasCount);
 
             foreach (var artist in artists)
             {
+                var artistJson = new StringContent(JsonSerializer.Serialize(new { name = artist.Name }), Encoding.UTF8, "application/json");
+                var artistPostResponse = await client.PostAsync(artistEndpoint, artistJson);
+                artistPostResponse.EnsureSuccessStatusCode();
+
+                var artistPostResponseObj = JsonSerializer.Deserialize<ArtistResource>(await artistPostResponse.Content.ReadAsStringAsync(), JsonOptions);
+                artist.Id = artistPostResponseObj.Id;
+
                 foreach (var alias in artist.Aliases)
                 {
-                    var jsonString = new StringContent(JsonSerializer.Serialize(new { Alias = alias.Name, Artist = artist.Name }), Encoding.UTF8, "application/json");
+                    var jsonString = new StringContent(JsonSerializer.Serialize(new { Name = alias.Name, artistid = artist.Id }), Encoding.UTF8, "application/json");
                     var postResponse = await client.PostAsync(aliasEndpoint, jsonString);
                     postResponse.EnsureSuccessStatusCode();
                 }
@@ -239,20 +247,27 @@ namespace Tests
         }
 
         [Fact]
-        public async Task Alias_Post_New()
+        public async Task Alias_Post()
         {
             await Cleanup();
             var aliasEndpoint = "/api/alias";
+            var artistEndpoint = "/api/artist";
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
             // Create new aliases
             var aliasList = GenerateArtists(1, 3);
             var parentArtist = aliasList.First();
 
-            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var artistJson = new StringContent(JsonSerializer.Serialize(new { Name = parentArtist.Name }), Encoding.UTF8, "application/json");
+            var artistPostResponse = await client.PostAsync(artistEndpoint, artistJson);
+            artistPostResponse.EnsureSuccessStatusCode();
+
+            var artistPostResponseObj = JsonSerializer.Deserialize<ArtistResource>(await artistPostResponse.Content.ReadAsStringAsync(), JsonOptions);
+            parentArtist.Id = artistPostResponseObj.Id;
 
             foreach (var alias in parentArtist.Aliases)
             {
-                var jsonString = new StringContent(JsonSerializer.Serialize(new { Alias = alias.Name, Artist = parentArtist.Name }), Encoding.UTF8, "application/json");
+                var jsonString = new StringContent(JsonSerializer.Serialize(new { Name = alias.Name, artistid = parentArtist.Id }), Encoding.UTF8, "application/json");
                 var postResponse = await client.PostAsync(aliasEndpoint, jsonString);
                 postResponse.EnsureSuccessStatusCode();
 
@@ -271,43 +286,6 @@ namespace Tests
             {
                 Assert.Single(aliasVerifyList.Where(x => x.Name.Equals(alias.Name)));
             }
-        }
-
-        [Fact]
-        public async Task Alias_Post_AddToExisting()
-        {
-            var aliasEndpoint = "/api/alias";
-
-            // Add test data
-            await Cleanup();
-            var artistList = GenerateArtists(1, 1);
-
-            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
-            var artist = artistList[0];
-            var originalAlias = artist.Aliases[0];
-
-            var jsonString = new StringContent(JsonSerializer.Serialize(new { Alias = originalAlias.Name, Artist = artist.Name }), Encoding.UTF8, "application/json");
-            var postResponse = await client.PostAsync(aliasEndpoint, jsonString);
-            postResponse.EnsureSuccessStatusCode();
-
-            // Add additional alias
-            var additionalAlias = new Alias()
-            {
-                Name = "New Alias"
-            };
-            var addJsonString = new StringContent(JsonSerializer.Serialize(new { Alias = additionalAlias.Name, Artist = artist.Name }), Encoding.UTF8, "application/json");
-            var addPostResponse = await client.PostAsync(aliasEndpoint, addJsonString);
-            addPostResponse.EnsureSuccessStatusCode();
-
-            // verify that alias was added to artist
-            var aliasVerifyListResponse = await client.GetAsync(aliasEndpoint);
-            aliasVerifyListResponse.EnsureSuccessStatusCode();
-
-            var aliasVerifyList = JsonSerializer.Deserialize<IEnumerable<AliasResource>>(await aliasVerifyListResponse.Content.ReadAsStringAsync(), JsonOptions);
-
-            Assert.Single(aliasVerifyList.Where(x => x.Name.Equals(originalAlias.Name)));
-            Assert.Single(aliasVerifyList.Where(x => x.Name.Equals(additionalAlias.Name)));
         }
 
         [Fact]

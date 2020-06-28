@@ -12,13 +12,11 @@ namespace ArtistNormalizer.API.Services
     {
         private readonly IAliasRepository aliasRepository;
         private readonly IUnitOfWork unitOfWork;
-        //private readonly IArtistService artistService;
 
         public AliasService(IAliasRepository aliasRepository, IUnitOfWork unitOfWork)
         {
             this.aliasRepository = aliasRepository;
             this.unitOfWork = unitOfWork;
-            //this.artistService = artistService;
         }
 
         public async Task<IEnumerable<Alias>> ListAsync()

@@ -58,6 +58,13 @@ namespace ArtistNormalizer.API.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState.GetErrorMessages());
 
+            var resolvedArtist = await artistService.FindByNameAsync(resource.Name);
+            if (resolvedArtist != null)
+            {
+                var existingAlias = mapper.Map<Artist, ArtistResource>(resolvedArtist);
+                return Ok(existingAlias);
+            }
+
             var artist = mapper.Map<SaveArtistResource, Artist>(resource);
             var result = await artistService.SaveAsync(artist);
 

@@ -57,41 +57,39 @@ namespace ArtistNormalizer.API.Controllers
         [HttpPost]
         public async Task<IActionResult> PostAsync([FromBody] SaveAliasResource resource)
         {
-            logger.LogInformation("POST /alias/(Alias:" + resource.Alias + ", Artist:" + resource.Artist +")");
+            logger.LogInformation("POST /alias/(Alias:" + resource.Name + ", Artist:" + resource.artistid + ")");
             if (!ModelState.IsValid)
                 return BadRequest(ModelState.GetErrorMessages());
 
-            var resolvedAlias = await aliasService.FindByNameAsync(resource.Alias);
-            var resolvedArtist = await artistService.FindByNameAsync(resource.Artist);
-
-            if (null == resolvedAlias)
+            var resolvedAlias = await aliasService.FindByNameAsync(resource.Name);
+            if (resolvedAlias != null)
             {
-                if(null == resolvedArtist)
+                if (resolvedAlias.ArtistId != resource.artistid)
                 {
-                    // artist is new, create it
-                    var newArtist = new Artist()
-                    {
-                        Name = resource.Artist
-                    };
-                    var artistResult = await artistService.SaveAsync(newArtist);
-                    if (!artistResult.Success)
-                        return BadRequest(artistResult.Message);
-
-                    resolvedArtist = artistResult.Artist;
+                    return BadRequest($"Alias already exists for artist {resolvedAlias.Artist.Id}");
                 }
 
-                var newAlias = new Alias()
-                {
-                    ArtistId = resolvedArtist.Id,
-                    Name = resource.Alias
-                };
-
-                var aliasResult = await aliasService.SaveAsync(newAlias);
-                if (!aliasResult.Success)
-                    return BadRequest(aliasResult.Message);
-
-                resolvedAlias = aliasResult.Alias;
+                var existingAlias = mapper.Map<Alias, AliasResource>(resolvedAlias);
+                return Ok(existingAlias);
             }
+
+            var resolvedArtist = await artistService.FindByIdAsync(resource.artistid);
+            if (null == resolvedArtist)
+            {
+                return BadRequest($"Could not find artist with id {resource.artistid}");
+            }
+
+            var newAlias = new Alias()
+            {
+                ArtistId = resource.artistid,
+                Name = resource.Name
+            };
+
+            var aliasResult = await aliasService.SaveAsync(newAlias);
+            if (!aliasResult.Success)
+                return BadRequest(aliasResult.Message);
+
+            resolvedAlias = aliasResult.Alias;
 
             var aliasResource = mapper.Map<Alias, AliasResource>(resolvedAlias);
             return Ok(aliasResource);

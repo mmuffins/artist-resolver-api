@@ -2,7 +2,9 @@
 using ArtistNormalizer.API.Domain.Repositories;
 using ArtistNormalizer.API.Domain.Services;
 using ArtistNormalizer.API.Domain.Services.Communication;
+using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -45,7 +47,6 @@ namespace ArtistNormalizer.API.Services
             }
             catch (Exception ex)
             {
-                // Do some logging stuff
                 return new ArtistResponse($"An error occurred when saving artist: {ex.Message}");
             }
         }

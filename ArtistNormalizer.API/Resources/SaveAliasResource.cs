@@ -5,9 +5,9 @@ namespace ArtistNormalizer.API.Resources
     public class SaveAliasResource
     {
         [Required]
-        public string Alias { get; set; }
+        public string Name { get; set; }
 
         [Required]
-        public string Artist { get; set; }
+        public int artistid { get; set; }
     }
 }

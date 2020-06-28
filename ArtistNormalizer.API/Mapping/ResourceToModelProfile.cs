@@ -12,7 +12,7 @@ namespace ArtistNormalizer.API.Mapping
             //CreateMap<SaveAliasResource, Alias>();
 
             CreateMap<SaveAliasResource, Alias>()
-                .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.Alias));
+                .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.Name));
             //.ForMember(dest => dest.Artist, 
             //                    opt => opt.MapFrom(src => Mapper.Map<Alias,Artist>(src)));
         }
