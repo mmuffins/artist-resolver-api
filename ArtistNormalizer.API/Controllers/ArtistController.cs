@@ -46,6 +46,8 @@ namespace ArtistNormalizer.API.Controllers
         public async Task<ArtistResource> FindByNameAsync(string name)
         {
             logger.LogInformation("GET /artist/name" + name);
+            
+            name = name.Trim();
             var artist = await artistService.FindByNameAsync(name);
             var resources = mapper.Map<Artist, ArtistResource>(artist);
             return resources;
@@ -55,6 +57,8 @@ namespace ArtistNormalizer.API.Controllers
         public async Task<IActionResult> PostAsync([FromBody] SaveArtistResource resource)
         {
             logger.LogInformation("POST /artist/(Artist:" + resource.Name + ")");
+            
+            resource.Name = resource.Name.Trim();
             if (!ModelState.IsValid)
                 return BadRequest(ModelState.GetErrorMessages());
 
