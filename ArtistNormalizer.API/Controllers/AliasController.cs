@@ -29,7 +29,7 @@ namespace ArtistNormalizer.API.Controllers
         [HttpGet]
         public async Task<IEnumerable<AliasResource>> GetAllAsync()
         {
-            logger.LogInformation("GET /alias");
+            logger.LogInformation("GET /alias/");
             var aliases = await aliasService.ListAsync();
             var resources = mapper.Map<IEnumerable<Alias>, IEnumerable<AliasResource>>(aliases);
 
@@ -39,7 +39,7 @@ namespace ArtistNormalizer.API.Controllers
         [HttpGet("name/{name}")]
         public async Task<AliasResource> FindByNameAsync(string name)
         {
-            logger.LogInformation("GET /alias/name"+name);
+            logger.LogInformation("GET /alias/name/"+name);
 
             name = name.Trim();
             var alias = await aliasService.FindByNameAsync(name);
@@ -59,7 +59,7 @@ namespace ArtistNormalizer.API.Controllers
         [HttpPost]
         public async Task<IActionResult> PostAsync([FromBody] SaveAliasResource resource)
         {
-            logger.LogInformation("POST /alias/(Alias:" + resource.Name + ", Artist:" + resource.artistid + ")");
+            logger.LogInformation("POST /alias/ (Alias:" + resource.Name + ", Artist:" + resource.artistid + ")");
             
             resource.Name = resource.Name.Trim();
             if (!ModelState.IsValid)
