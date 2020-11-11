@@ -284,7 +284,7 @@ namespace Tests
 
             foreach (var alias in parentArtist.Aliases)
             {
-                Assert.Single(aliasVerifyList.Where(x => x.Name.Equals(alias.Name)));
+                Assert.Single(aliasVerifyList.Where(x => x.Name.Equals(alias.Name, StringComparison.InvariantCultureIgnoreCase)));
             }
         }
 
