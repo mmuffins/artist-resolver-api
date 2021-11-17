@@ -14,6 +14,8 @@ jobs:
     runs-on: windows-latest
     env:
       Configuration: Release
+      Framework: net6.0
+      Runtime: win-x64
       
     steps:
     - uses: actions/checkout@v2
@@ -26,8 +28,11 @@ jobs:
     - name: dotnet restore
       run: dotnet restore
 
+    - name: dotnet test
+      run: dotnet test ArtistNormalizer.API.sln --configuration ${{ env.Configuration }} --framework ${{ env.Framework }}
+      
     - name: dotnet publish
-      run: dotnet publish ArtistNormalizer.API\ArtistNormalizer.API.csproj --configuration ${{ env.Configuration }} -p:PublishSingleFile=true --self-contained false -p:PublishTrimmed=false -p:PublishReadyToRun=false --runtime win-x64 --framework net6.0 --output publish
+      run: dotnet publish ArtistNormalizer.API\ArtistNormalizer.API.csproj --configuration ${{ env.Configuration }} -p:PublishSingleFile=true --self-contained false -p:PublishTrimmed=false -p:PublishReadyToRun=false --runtime ${{ env.Runtime }} --framework ${{ env.Framework }} --output publish
       
     - name: Upload artifact
       uses: actions/upload-artifact@v2
