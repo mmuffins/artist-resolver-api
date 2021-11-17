@@ -27,9 +27,15 @@ jobs:
       
     - name: dotnet restore
       run: dotnet restore
-
+      
+    - name: dotnet build
+      run: dotnet build ArtistNormalizer.API.sln --configuration ${{ env.Configuration }} -p:PublishSingleFile=true --self-contained false -p:PublishTrimmed=false -p:PublishReadyToRun=true --framework net6.0 --no-restore
+      
     - name: dotnet test
-      run: dotnet test ArtistNormalizer.API.sln --configuration ${{ env.Configuration }} --framework ${{ env.Framework }}
+      run: dotnet test ArtistNormalizer.API.sln --configuration ${{ env.Configuration }} --framework ${{ env.Framework }} --verbosity normal
+      
+    # - name: dotnet publish
+    #  run: dotnet publish ArtistNormalizer.API\ArtistNormalizer.API.csproj --configuration ${{ env.Configuration }} -p:PublishSingleFile=true --self-contained false -p:PublishTrimmed=false -p:PublishReadyToRun=false --runtime ${{ env.Runtime }} --framework ${{ env.Framework }} --output publish
       
     - name: dotnet publish
       run: dotnet publish ArtistNormalizer.API\ArtistNormalizer.API.csproj --configuration ${{ env.Configuration }} -p:PublishSingleFile=true --self-contained false -p:PublishTrimmed=false -p:PublishReadyToRun=false --runtime ${{ env.Runtime }} --framework ${{ env.Framework }} --output publish
