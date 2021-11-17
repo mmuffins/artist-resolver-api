@@ -3,11 +3,7 @@ name: .NET
 on:
   workflow_dispatch:
   push:
-    branches:
-      - master
   pull_request:
-    branches: 
-      - master
 
 jobs:
   build:
@@ -33,9 +29,6 @@ jobs:
       
     - name: dotnet test
       run: dotnet test ArtistNormalizer.API.sln --configuration ${{ env.Configuration }} --framework ${{ env.Framework }} --verbosity normal
-      
-    # - name: dotnet publish
-    #  run: dotnet publish ArtistNormalizer.API\ArtistNormalizer.API.csproj --configuration ${{ env.Configuration }} -p:PublishSingleFile=true --self-contained false -p:PublishTrimmed=false -p:PublishReadyToRun=false --runtime ${{ env.Runtime }} --framework ${{ env.Framework }} --output publish
       
     - name: dotnet publish
       run: dotnet publish ArtistNormalizer.API\ArtistNormalizer.API.csproj --configuration ${{ env.Configuration }} -p:PublishSingleFile=true --self-contained false -p:PublishTrimmed=false -p:PublishReadyToRun=false --runtime ${{ env.Runtime }} --framework ${{ env.Framework }} --output publish
