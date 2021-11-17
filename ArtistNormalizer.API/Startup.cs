@@ -30,8 +30,7 @@ namespace ArtistNormalizer.API
         {
             Console.OutputEncoding = Encoding.UTF8;
             services.AddMvc()
-                .AddControllersAsServices()
-                .SetCompatibilityVersion(CompatibilityVersion.Version_3_0);
+                .AddControllersAsServices();
 
             if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "unittest")
             {
