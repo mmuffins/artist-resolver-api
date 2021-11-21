@@ -4,6 +4,7 @@ using ArtistNormalizer.API.Domain.Services;
 using ArtistNormalizer.API.Domain.Services.Communication;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace ArtistNormalizer.API.Services
@@ -19,9 +20,9 @@ namespace ArtistNormalizer.API.Services
             this.unitOfWork = unitOfWork;
         }
 
-        public async Task<IEnumerable<Alias>> ListAsync()
+        public async Task<IEnumerable<Alias>> ListAsync(int? id, string name, int? franchiseId)
         {
-            return await aliasRepository.ListAsync();
+            return await aliasRepository.ListAsync(id, name, franchiseId);
         }
 
         public async Task<AliasResponse> SaveAsync(Alias alias)
@@ -42,7 +43,8 @@ namespace ArtistNormalizer.API.Services
 
         public async Task<AliasResponse> DeleteAsync(int id)
         {
-            var existingAlias = await aliasRepository.FindByIdAsync(id);
+            var existingAlias = (await aliasRepository.ListAsync(id, null, null))
+                .FirstOrDefault();
 
             if (existingAlias == null)
                 return new AliasResponse("Alias not found.");
@@ -59,16 +61,6 @@ namespace ArtistNormalizer.API.Services
                 // Do some logging stuff
                 return new AliasResponse($"An error occurred when deleting alias: {ex.Message}");
             }
-        }
-
-        public async Task<Alias> FindByIdAsync(int id)
-        {
-            return await aliasRepository.FindByIdAsync(id);
-        }
-
-        public async Task<Alias> FindByNameAsync(string name)
-        {
-            return await aliasRepository.FindByNameAsync(name);
         }
     }
 }

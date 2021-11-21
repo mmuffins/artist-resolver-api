@@ -36,7 +36,7 @@ namespace ArtistNormalizer.API.Persistence.Contexts
             builder.Entity<Alias>(e => {
                 e.ToTable("Aliases");
                 e.HasKey(p => p.Id);
-                e.HasIndex(p => p.Name).IsUnique();
+                e.HasIndex(p => new { p.Name, p.FranchiseId }).IsUnique();
                 e.Property(p => p.Name).HasConversion(v => v.ToLowerInvariant(), v => v);
                 e.Property(x => x.Name).HasColumnType("TEXT COLLATE NOCASE");
             });

@@ -6,10 +6,8 @@ namespace ArtistNormalizer.API.Domain.Repositories
 {
     public interface IAliasRepository
     {
-        Task<IEnumerable<Alias>> ListAsync();
+        Task<IEnumerable<Alias>> ListAsync(int? id, string name, int? franchiseId);
         Task AddAsync(Alias alias);
-        Task<Alias> FindByIdAsync(int id);
-        Task<Alias> FindByNameAsync(string name);
         void Remove(Alias artist);
     }
 }

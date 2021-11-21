@@ -357,6 +357,86 @@ namespace Tests
         }
 
         [Fact]
+        public async Task Alias_Post_Duplicate_Name_Different_Franchise()
+        {
+            await Cleanup();
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // Create new aliases
+            List<Artist> aliasList = GenerateArtists(1, 1, 2);
+            string aliasName = "duplicateName";
+
+            Artist parentArtist = aliasList.First();
+            ArtistResource parentArtistResource = await PostArtist(parentArtist);
+            parentArtist.Id = parentArtistResource.Id;
+
+            foreach (var alias in parentArtist.Aliases)
+            {
+                FranchiseResource postFranchise = await PostFranchise(alias.Franchise);
+                alias.Franchise.Id = postFranchise.Id;
+
+                alias.Name = aliasName;
+                var jsonString = new StringContent(JsonSerializer.Serialize(new { Name = alias.Name, artistid = parentArtist.Id, franchiseId = alias.Franchise.Id }), Encoding.UTF8, "application/json");
+                HttpResponseMessage postResponse = await client.PostAsync(aliasEndpoint, jsonString);
+                postResponse.EnsureSuccessStatusCode();
+
+                var postResponseObj = JsonSerializer.Deserialize<AliasResource>(await postResponse.Content.ReadAsStringAsync(), JsonOptions);
+                Assert.Equal(alias.Name, postResponseObj.Name);
+                Assert.Equal(parentArtist.Name, postResponseObj.Artist);
+                Assert.Equal(alias.Franchise.Name, postResponseObj.Franchise);
+            }
+
+            // Verify that all aliases have been created
+            var aliasVerifyListResponse = await client.GetAsync(aliasEndpoint);
+            aliasVerifyListResponse.EnsureSuccessStatusCode();
+
+            var aliasVerifyList = JsonSerializer.Deserialize<IEnumerable<AliasResource>>(await aliasVerifyListResponse.Content.ReadAsStringAsync(), JsonOptions);
+
+            Assert.Single(aliasVerifyList.Select(a => a.Name).Distinct());
+            Assert.Equal(2, aliasVerifyList.Select(a => a.FranchiseId).Distinct().Count());
+        }
+
+        [Fact]
+        public async Task Alias_Post_Duplicate_Name_Same_Franchise()
+        {
+            await Cleanup();
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // Create new aliases
+            List<Artist> aliasList = GenerateArtists(1, 3, 1);
+            string aliasName = "duplicatename";
+
+            Artist parentArtist = aliasList.First();
+            ArtistResource parentArtistResource = await PostArtist(parentArtist);
+            parentArtist.Id = parentArtistResource.Id;
+
+            Franchise parentFranchise = parentArtist.Aliases.First().Franchise;
+            FranchiseResource parentFranchiseResource = await PostFranchise(parentFranchise);
+            parentFranchise.Id = parentFranchiseResource.Id;
+
+            foreach (var alias in parentArtist.Aliases)
+            {
+                alias.Name = aliasName;
+                var jsonString = new StringContent(JsonSerializer.Serialize(new { Name = alias.Name, artistid = parentArtist.Id, franchiseId = alias.Franchise.Id }), Encoding.UTF8, "application/json");
+                HttpResponseMessage postResponse = await client.PostAsync(aliasEndpoint, jsonString);
+                postResponse.EnsureSuccessStatusCode();
+
+                var postResponseObj = JsonSerializer.Deserialize<AliasResource>(await postResponse.Content.ReadAsStringAsync(), JsonOptions);
+                Assert.Equal(alias.Name, postResponseObj.Name);
+                Assert.Equal(parentArtist.Name, postResponseObj.Artist);
+                Assert.Equal(alias.Franchise.Name, postResponseObj.Franchise);
+            }
+
+            // Verify that all aliases have been created
+            var aliasVerifyListResponse = await client.GetAsync(aliasEndpoint);
+            aliasVerifyListResponse.EnsureSuccessStatusCode();
+
+            var aliasVerifyList = JsonSerializer.Deserialize<IEnumerable<AliasResource>>(await aliasVerifyListResponse.Content.ReadAsStringAsync(), JsonOptions);
+
+            Assert.Single(aliasVerifyList);
+        }
+
+        [Fact]
         public async Task Alias_Delete()
         {
             // Add test data
@@ -399,7 +479,26 @@ namespace Tests
         }
 
         [Fact]
-        public async Task Alias_FindByName()
+        public async Task Alias_List()
+        {
+            // Add test data
+            await Cleanup();
+            await SeedData(2, 3, 2);
+            int totalAliases = 2 * 3 * 2;
+
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // get Id of all elements
+            var allAliasesResponse = await client.GetAsync(aliasEndpoint);
+            allAliasesResponse.EnsureSuccessStatusCode();
+            var allAliases = JsonSerializer.Deserialize<IEnumerable<AliasResource>>(await allAliasesResponse.Content.ReadAsStringAsync(), JsonOptions)
+                .ToList();
+
+            Assert.Equal(totalAliases, allAliases.Count());
+        }
+
+        [Fact]
+        public async Task Alias_FindByAliasName()
         {
             // Add test data
             await Cleanup();
@@ -408,19 +507,73 @@ namespace Tests
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
             // get Id of all elements
-            var allAliasesResponse = await client.GetAsync(aliasEndpoint);
-            allAliasesResponse.EnsureSuccessStatusCode();
-            var allAliases = JsonSerializer.Deserialize<IEnumerable<ArtistResource>>(await allAliasesResponse.Content.ReadAsStringAsync(), JsonOptions)
+            HttpResponseMessage httpResponse = await client.GetAsync(aliasEndpoint);
+            httpResponse.EnsureSuccessStatusCode();
+            var allAliases = JsonSerializer.Deserialize<IEnumerable<AliasResource>>(await httpResponse.Content.ReadAsStringAsync(), JsonOptions)
                 .ToList();
 
             // verify that findById returns correct results
-            for (int i = 0; i < allAliases.Count; i++)
+            foreach (var alias in allAliases)
             {
-                var verifyResponse = await client.GetAsync($"{aliasEndpoint}/name/{allAliases[i].Name}");
+                HttpResponseMessage verifyResponse = await client.GetAsync($"{aliasEndpoint}?name={alias.Name}");
                 verifyResponse.EnsureSuccessStatusCode();
 
-                var verifyAlias = JsonSerializer.Deserialize<AliasResource>(await verifyResponse.Content.ReadAsStringAsync(), JsonOptions);
-                Assert.Equal(allAliases[i].Id, verifyAlias.Id);
+                var verifyAlias = JsonSerializer.Deserialize<IEnumerable<AliasResource>>(await verifyResponse.Content.ReadAsStringAsync(), JsonOptions);
+                Assert.Single(verifyAlias);
+                Assert.Equal(alias.Id, verifyAlias.First().Id);
+            }
+        }
+
+        [Fact]
+        public async Task Alias_FindByFranchiseName()
+        {
+            // Add test data
+            await Cleanup();
+            await SeedData(2, 3, 1);
+
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // get Id of all elements
+            HttpResponseMessage httpResponse = await client.GetAsync(franchiseEndpoint);
+            httpResponse.EnsureSuccessStatusCode();
+            var allFranchises = JsonSerializer.Deserialize<IEnumerable<FranchiseResource>>(await httpResponse.Content.ReadAsStringAsync(), JsonOptions)
+                .ToList();
+
+            // verify that findById returns correct results
+            foreach (var franchise in allFranchises)
+            {
+                HttpResponseMessage verifyResponse = await client.GetAsync($"{aliasEndpoint}?franchise={franchise.Name}");
+                verifyResponse.EnsureSuccessStatusCode();
+
+                var verifyAlias = JsonSerializer.Deserialize<IEnumerable<AliasResource>>(await verifyResponse.Content.ReadAsStringAsync(), JsonOptions);
+                Assert.Equal(franchise.Aliases.Count(), verifyAlias.Count());
+            }
+        }
+
+        [Fact]
+        public async Task Alias_FindByAliasName_And_FranchiseName()
+        {
+            // Add test data
+            await Cleanup();
+            await SeedData(1, 3, 3);
+
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // get Id of all elements
+            HttpResponseMessage httpResponse = await client.GetAsync(aliasEndpoint);
+            httpResponse.EnsureSuccessStatusCode();
+            var allAliases = JsonSerializer.Deserialize<IEnumerable<AliasResource>>(await httpResponse.Content.ReadAsStringAsync(), JsonOptions)
+                .ToList();
+
+            // verify that findById returns correct results
+            foreach (var alias in allAliases)
+            {
+                HttpResponseMessage verifyResponse = await client.GetAsync($"{aliasEndpoint}?name={alias.Name}&franchise={alias.Franchise}");
+                verifyResponse.EnsureSuccessStatusCode();
+
+                var verifyAlias = JsonSerializer.Deserialize<IEnumerable<AliasResource>>(await verifyResponse.Content.ReadAsStringAsync(), JsonOptions);
+                Assert.Single(verifyAlias);
+                Assert.Equal(alias.Id, verifyAlias.First().Id);
             }
         }
 
@@ -457,13 +610,12 @@ namespace Tests
 
             // Add test data
             var fList = GenerateFranchise(3);
-
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
             foreach (var franchise in fList)
             {
                 var jsonString = new StringContent(JsonSerializer.Serialize(new { Name = franchise.Name }), Encoding.UTF8, "application/json");
-                var postResponse = await client.PostAsync(franchiseEndpoint, jsonString);
+                HttpResponseMessage postResponse = await client.PostAsync(franchiseEndpoint, jsonString);
                 postResponse.EnsureSuccessStatusCode();
 
                 var postResponseObj = JsonSerializer.Deserialize<FranchiseResource>(await postResponse.Content.ReadAsStringAsync(), JsonOptions);
@@ -471,7 +623,7 @@ namespace Tests
             }
 
             // Verify
-            var httpResponse = await client.GetAsync(franchiseEndpoint);
+            HttpResponseMessage httpResponse = await client.GetAsync(franchiseEndpoint);
             httpResponse.EnsureSuccessStatusCode();
 
             // Deserialize and examine results.

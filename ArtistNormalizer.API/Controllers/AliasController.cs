@@ -6,6 +6,7 @@ using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace ArtistNormalizer.API.Controllers
@@ -28,33 +29,30 @@ namespace ArtistNormalizer.API.Controllers
             this.logger = logger;
         }
 
-        [HttpGet]
-        public async Task<IEnumerable<AliasResource>> GetAllAsync()
-        {
-            logger.LogInformation("GET /alias/");
-            var aliases = await aliasService.ListAsync();
-            var resources = mapper.Map<IEnumerable<Alias>, IEnumerable<AliasResource>>(aliases);
-
-            return resources;
-        }
-
-        [HttpGet("name/{name}")]
-        public async Task<AliasResource> FindByNameAsync(string name)
-        {
-            logger.LogInformation("GET /alias/name/"+name);
-
-            name = name.Trim();
-            var alias = await aliasService.FindByNameAsync(name);
-            var resource = mapper.Map<Alias, AliasResource>(alias);
-            return resource;
-        }
-
         [HttpGet("id/{id}")]
         public async Task<AliasResource> FindByIdAsync(int id)
         {
             logger.LogInformation("GET /alias/id/" + id);
-            var alias = await aliasService.FindByIdAsync(id);
+
+            var alias = (await aliasService.ListAsync(id, null, null)).FirstOrDefault();
             var resource = mapper.Map<Alias, AliasResource>(alias);
+            return resource;
+        }
+
+        [HttpGet]
+        public async Task<IEnumerable<AliasResource>> FindAsync(int? id, string name, string franchise, int? franchiseId)
+        {
+            logger.LogInformation($"GET /alias/ - id:{id}, name:{name}, franchise:{franchise}, franchiseId:{franchiseId}");
+
+            int? resolvedFranchiseId = null;
+            if(franchise is not null)
+            {
+                Franchise resolvedFranchise = await franchiseService.FindByNameAsync(franchise);
+                resolvedFranchiseId = resolvedFranchise.Id;
+            }
+
+            IEnumerable<Alias> alias = await aliasService.ListAsync(id, name, resolvedFranchiseId);
+            var resource = mapper.Map<IEnumerable<Alias>, IEnumerable<AliasResource>>(alias);
             return resource;
         }
 
@@ -67,12 +65,12 @@ namespace ArtistNormalizer.API.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState.GetErrorMessages());
 
-            var resolvedAlias = await aliasService.FindByNameAsync(resource.Name);
+            var resolvedAlias = (await aliasService.ListAsync(null, resource.Name, resource.franchiseid)).FirstOrDefault();
             if (resolvedAlias != null)
             {
                 if (resolvedAlias.ArtistId != resource.artistid)
                 {
-                    return BadRequest($"Alias already exists for artist {resolvedAlias.Artist.Id}");
+                    return BadRequest($"Alias already exists for artist {resolvedAlias.Artist.Id} with franchise {resolvedAlias.Franchise.Id}");
                 }
 
                 var existingAlias = mapper.Map<Alias, AliasResource>(resolvedAlias);

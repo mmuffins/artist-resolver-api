@@ -34,7 +34,7 @@ namespace ArtistNormalizer.API.Persistence.Repositories
         {
             return await context.Artists
                 .Include(a => a.Aliases)
-                .SingleOrDefaultAsync(a => string.Equals(a.Name, name, System.StringComparison.CurrentCultureIgnoreCase));
+                .SingleOrDefaultAsync(a => a.Name == name);
         }
 
         public void Remove(Artist artist)
