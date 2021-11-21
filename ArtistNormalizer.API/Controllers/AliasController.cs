@@ -14,14 +14,16 @@ namespace ArtistNormalizer.API.Controllers
     public class AliasController : Controller
     {
         private readonly IAliasService aliasService;
-        private readonly IMapper mapper;
         private readonly IArtistService artistService;
+        private readonly IFranchiseService franchiseService;
+        private readonly IMapper mapper;
         private readonly ILogger logger;
 
-        public AliasController(IAliasService aliasService, IArtistService artistService, IMapper mapper, ILogger<ArtistController> logger)
+        public AliasController(IAliasService aliasService, IArtistService artistService, IFranchiseService franchiseService, IMapper mapper, ILogger<ArtistController> logger)
         {
             this.aliasService = aliasService;
             this.artistService = artistService;
+            this.franchiseService = franchiseService;
             this.mapper = mapper;
             this.logger = logger;
         }
@@ -59,7 +61,7 @@ namespace ArtistNormalizer.API.Controllers
         [HttpPost]
         public async Task<IActionResult> PostAsync([FromBody] SaveAliasResource resource)
         {
-            logger.LogInformation("POST /alias/ (Alias:" + resource.Name + ", Artist:" + resource.artistid + ")");
+            logger.LogInformation("POST /alias/ (Alias:" + resource.Name + ", Artist:" + resource.artistid + ", Franchise:" + resource.franchiseid + ")");
             
             resource.Name = resource.Name.Trim();
             if (!ModelState.IsValid)
@@ -83,9 +85,16 @@ namespace ArtistNormalizer.API.Controllers
                 return BadRequest($"Could not find artist with id {resource.artistid}");
             }
 
+            var resolvedFranchise = await franchiseService.FindByIdAsync(resource.franchiseid);
+            if (null == resolvedFranchise)
+            {
+                return BadRequest($"Could not find franchise with id {resource.franchiseid}");
+            }
+
             var newAlias = new Alias()
             {
                 ArtistId = resource.artistid,
+                FranchiseId = resource.franchiseid,
                 Name = resource.Name
             };
 
@@ -107,13 +116,22 @@ namespace ArtistNormalizer.API.Controllers
             if (!result.Success)
                 return BadRequest(result.Message);
 
-            // Delete artist if we just deleted the last alias
+            // Delete artist if we just deleted its last alias
             var artist = await artistService.FindByIdAsync(result.Alias.ArtistId);
-            if(artist.Aliases.Count == 0)
+            if (artist.Aliases.Count == 0)
             {
                 var artistResult = await artistService.DeleteAsync(artist.Id);
                 if (!artistResult.Success)
                     return BadRequest(artistResult.Message);
+            }
+
+            // Delete franchise if we just deleted its last alias
+            var franchise = await franchiseService.FindByIdAsync(result.Alias.FranchiseId);
+            if (franchise.Aliases.Count == 0)
+            {
+                var franchiseResult = await franchiseService.DeleteAsync(franchise.Id);
+                if (!franchiseResult.Success)
+                    return BadRequest(franchiseResult.Message);
             }
 
             var categoryResource = mapper.Map<Alias, AliasResource>(result.Alias);

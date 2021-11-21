@@ -51,6 +51,8 @@ namespace ArtistNormalizer.API
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IArtistRepository, ArtistRepository>();
             services.AddScoped<IArtistService, ArtistService>();
+            services.AddScoped<IFranchiseRepository, FranchiseRepository>();
+            services.AddScoped<IFranchiseService, FranchiseService>();
             services.AddScoped<IAliasRepository, AliasRepository>();
             services.AddScoped<IAliasService, AliasService>();
             services.AddAutoMapper(typeof(Startup));

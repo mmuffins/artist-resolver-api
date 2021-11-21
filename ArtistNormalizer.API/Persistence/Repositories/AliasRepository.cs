@@ -20,6 +20,7 @@ namespace ArtistNormalizer.API.Persistence.Repositories
         public async Task<Alias> FindByIdAsync(int id)
         {
             return await context.Aliases
+                .Include(a => a.Franchise)
                 .Include(a => a.Artist)
                 .SingleOrDefaultAsync(a => a.Id == id);
         }
@@ -27,6 +28,7 @@ namespace ArtistNormalizer.API.Persistence.Repositories
         public async Task<Alias> FindByNameAsync(string name)
         {
             return await context.Aliases
+                .Include(a => a.Franchise)
                 .Include(a => a.Artist)
                 .SingleOrDefaultAsync(a => a.Name == name);
         }
@@ -34,6 +36,7 @@ namespace ArtistNormalizer.API.Persistence.Repositories
         public async Task<IEnumerable<Alias>> ListAsync()
         {
             return await context.Aliases
+                .Include(a => a.Franchise)
                 .Include(a => a.Artist)
                 .ToListAsync();
         }
