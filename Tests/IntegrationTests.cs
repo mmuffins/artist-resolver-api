@@ -257,6 +257,25 @@ namespace Tests
         }
 
         [Fact]
+        public async Task Artist_List()
+        {
+            // Add test data
+            await Cleanup();
+            await SeedData(3, 2, 2);
+            int targetElementCount = 3;
+
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // get Id of all elements
+            HttpResponseMessage allElementsResponse = await client.GetAsync(artistEndpoint);
+            allElementsResponse.EnsureSuccessStatusCode();
+            var allElements = JsonSerializer.Deserialize<IEnumerable<ArtistResource>>(await allElementsResponse.Content.ReadAsStringAsync(), JsonOptions)
+                .ToList();
+
+            Assert.Equal(targetElementCount, allElements.Count());
+        }
+
+        [Fact]
         public async Task Artist_FindById()
         {
             // Add test data
@@ -484,17 +503,17 @@ namespace Tests
             // Add test data
             await Cleanup();
             await SeedData(2, 3, 2);
-            int totalAliases = 2 * 3 * 2;
+            int targetElementCount = 2 * 3 * 2;
 
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
             // get Id of all elements
-            var allAliasesResponse = await client.GetAsync(aliasEndpoint);
-            allAliasesResponse.EnsureSuccessStatusCode();
-            var allAliases = JsonSerializer.Deserialize<IEnumerable<AliasResource>>(await allAliasesResponse.Content.ReadAsStringAsync(), JsonOptions)
+            HttpResponseMessage allElementsResponse = await client.GetAsync(aliasEndpoint);
+            allElementsResponse.EnsureSuccessStatusCode();
+            var allElements = JsonSerializer.Deserialize<IEnumerable<AliasResource>>(await allElementsResponse.Content.ReadAsStringAsync(), JsonOptions)
                 .ToList();
 
-            Assert.Equal(totalAliases, allAliases.Count());
+            Assert.Equal(targetElementCount, allElements.Count());
         }
 
         [Fact]
@@ -675,18 +694,37 @@ namespace Tests
         }
 
         [Fact]
-        public async Task Franchise_FindByName()
+        public async Task Franchise_List()
         {
             // Add test data
             await Cleanup();
-            await SeedData(1, 2, 5);
+            await SeedData(2, 3, 4);
+            int targetElementCount = 4;
 
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
             // get Id of all elements
-            HttpResponseMessage allFranchisesResponse = await client.GetAsync(franchiseEndpoint);
-            allFranchisesResponse.EnsureSuccessStatusCode();
-            var allFranchisesList = JsonSerializer.Deserialize<IEnumerable<FranchiseResource>>(await allFranchisesResponse.Content.ReadAsStringAsync(), JsonOptions)
+            HttpResponseMessage allElementsResponse = await client.GetAsync(franchiseEndpoint);
+            allElementsResponse.EnsureSuccessStatusCode();
+            var allElements = JsonSerializer.Deserialize<IEnumerable<FranchiseResource>>(await allElementsResponse.Content.ReadAsStringAsync(), JsonOptions)
+                .ToList();
+
+            Assert.Equal(targetElementCount, allElements.Count());
+        }
+
+        [Fact]
+        public async Task Franchise_FindByName()
+        {
+            // Add test data
+            await Cleanup();
+            await SeedData(2, 2, 5);
+
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // get Id of all elements
+            HttpResponseMessage httpResponse = await client.GetAsync(franchiseEndpoint);
+            httpResponse.EnsureSuccessStatusCode();
+            var allFranchisesList = JsonSerializer.Deserialize<IEnumerable<FranchiseResource>>(await httpResponse.Content.ReadAsStringAsync(), JsonOptions)
                 .ToList();
 
             // verify that findById returns correct results
