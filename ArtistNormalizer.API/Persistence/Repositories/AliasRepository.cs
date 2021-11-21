@@ -30,7 +30,7 @@ namespace ArtistNormalizer.API.Persistence.Repositories
             return await context.Aliases
                 .Include(a => a.Franchise)
                 .Include(a => a.Artist)
-                .SingleOrDefaultAsync(a => a.Name == name);
+                .SingleOrDefaultAsync(a => string.Equals(a.Name, name, System.StringComparison.CurrentCultureIgnoreCase));
         }
 
         public async Task<IEnumerable<Alias>> ListAsync()

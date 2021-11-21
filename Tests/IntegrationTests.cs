@@ -579,7 +579,6 @@ namespace Tests
                 var verifyFranchise = JsonSerializer.Deserialize<FranchiseResource>(await verifyResponse.Content.ReadAsStringAsync(), JsonOptions);
                 Assert.Equal(allFranchisesList[i].Name, verifyFranchise.Name);
             }
-
         }
 
         [Fact]
@@ -712,12 +711,6 @@ namespace Tests
             await SeedData(1, 2, 1);
 
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
-            // get all elements
-            //HttpResponseMessage allArtistsResponse = await client.GetAsync(artistEndpoint);
-            //allArtistsResponse.EnsureSuccessStatusCode();
-            //var artistList = JsonSerializer.Deserialize<IEnumerable<ArtistResource>>(await allArtistsResponse.Content.ReadAsStringAsync(), JsonOptions)
-            //    .ToList();
 
             HttpResponseMessage allFranchisesResponse = await client.GetAsync(franchiseEndpoint);
             allFranchisesResponse.EnsureSuccessStatusCode();

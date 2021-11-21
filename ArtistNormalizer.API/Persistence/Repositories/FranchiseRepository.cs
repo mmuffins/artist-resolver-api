@@ -34,7 +34,7 @@ namespace ArtistNormalizer.API.Persistence.Repositories
         {
             return await context.Franchises
                 .Include(a => a.Aliases)
-                .SingleOrDefaultAsync(a => a.Name == name);
+                .SingleOrDefaultAsync(a => string.Equals(a.Name, name, System.StringComparison.CurrentCultureIgnoreCase));
         }
 
         public void Remove(Franchise franchise)
