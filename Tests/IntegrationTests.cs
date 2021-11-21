@@ -313,24 +313,25 @@ namespace Tests
         {
             // Add test data
             await Cleanup();
-            await SeedData(5, 2, 1);
+            await SeedData(2, 2, 5);
 
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
             // get Id of all elements
-            HttpResponseMessage allArtistsResponse = await client.GetAsync(artistEndpoint);
-            allArtistsResponse.EnsureSuccessStatusCode();
-            var allArtistsList = JsonSerializer.Deserialize<IEnumerable<ArtistResource>>(await allArtistsResponse.Content.ReadAsStringAsync(), JsonOptions)
+            HttpResponseMessage allElementsResponse = await client.GetAsync(artistEndpoint);
+            allElementsResponse.EnsureSuccessStatusCode();
+            var allElements = JsonSerializer.Deserialize<IEnumerable<ArtistResource>>(await allElementsResponse.Content.ReadAsStringAsync(), JsonOptions)
                 .ToList();
 
-            // verify that findById returns correct results
-            for (int i = 0; i < allArtistsList.Count; i++)
+            // verify that the correct results are returned
+            foreach (var targetElement in allElements)
             {
-                HttpResponseMessage verifyResponse = await client.GetAsync($"{artistEndpoint}/name/{allArtistsList[i].Name}");
+                HttpResponseMessage verifyResponse = await client.GetAsync($"{artistEndpoint}?name={targetElement.Name}");
                 verifyResponse.EnsureSuccessStatusCode();
 
-                var verifyArt = JsonSerializer.Deserialize<ArtistResource>(await verifyResponse.Content.ReadAsStringAsync(), JsonOptions);
-                Assert.Equal(allArtistsList[i].Id, verifyArt.Id);
+                var verifyElement = JsonSerializer.Deserialize<IEnumerable<FranchiseResource>>(await verifyResponse.Content.ReadAsStringAsync(), JsonOptions);
+                Assert.Single(verifyElement);
+                Assert.Equal(targetElement.Id, verifyElement.First().Id);
             }
         }
 
@@ -526,20 +527,20 @@ namespace Tests
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
             // get Id of all elements
-            HttpResponseMessage httpResponse = await client.GetAsync(aliasEndpoint);
-            httpResponse.EnsureSuccessStatusCode();
-            var allAliases = JsonSerializer.Deserialize<IEnumerable<AliasResource>>(await httpResponse.Content.ReadAsStringAsync(), JsonOptions)
+            HttpResponseMessage allElementsResponse = await client.GetAsync(aliasEndpoint);
+            allElementsResponse.EnsureSuccessStatusCode();
+            var allElements = JsonSerializer.Deserialize<IEnumerable<AliasResource>>(await allElementsResponse.Content.ReadAsStringAsync(), JsonOptions)
                 .ToList();
 
-            // verify that findById returns correct results
-            foreach (var alias in allAliases)
+            // verify that the correct results are returned
+            foreach (var targetElement in allElements)
             {
-                HttpResponseMessage verifyResponse = await client.GetAsync($"{aliasEndpoint}?name={alias.Name}");
+                HttpResponseMessage verifyResponse = await client.GetAsync($"{aliasEndpoint}?name={targetElement.Name}");
                 verifyResponse.EnsureSuccessStatusCode();
 
-                var verifyAlias = JsonSerializer.Deserialize<IEnumerable<AliasResource>>(await verifyResponse.Content.ReadAsStringAsync(), JsonOptions);
-                Assert.Single(verifyAlias);
-                Assert.Equal(alias.Id, verifyAlias.First().Id);
+                var verifyElement = JsonSerializer.Deserialize<IEnumerable<AliasResource>>(await verifyResponse.Content.ReadAsStringAsync(), JsonOptions);
+                Assert.Single(verifyElement);
+                Assert.Equal(targetElement.Id, verifyElement.First().Id);
             }
         }
 
@@ -722,19 +723,20 @@ namespace Tests
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
             // get Id of all elements
-            HttpResponseMessage httpResponse = await client.GetAsync(franchiseEndpoint);
-            httpResponse.EnsureSuccessStatusCode();
-            var allFranchisesList = JsonSerializer.Deserialize<IEnumerable<FranchiseResource>>(await httpResponse.Content.ReadAsStringAsync(), JsonOptions)
+            HttpResponseMessage allElementsResponse = await client.GetAsync(franchiseEndpoint);
+            allElementsResponse.EnsureSuccessStatusCode();
+            var allElements = JsonSerializer.Deserialize<IEnumerable<FranchiseResource>>(await allElementsResponse.Content.ReadAsStringAsync(), JsonOptions)
                 .ToList();
 
-            // verify that findById returns correct results
-            for (int i = 0; i < allFranchisesList.Count; i++)
+            // verify that the correct results are returned
+            foreach (var targetElement in allElements)
             {
-                HttpResponseMessage verifyResponse = await client.GetAsync($"{franchiseEndpoint}/name/{allFranchisesList[i].Name}");
+                HttpResponseMessage verifyResponse = await client.GetAsync($"{franchiseEndpoint}?name={targetElement.Name}");
                 verifyResponse.EnsureSuccessStatusCode();
 
-                var verifyFranchise = JsonSerializer.Deserialize<FranchiseResource>(await verifyResponse.Content.ReadAsStringAsync(), JsonOptions);
-                Assert.Equal(allFranchisesList[i].Id, verifyFranchise.Id);
+                var verifyElement = JsonSerializer.Deserialize<IEnumerable<FranchiseResource>>(await verifyResponse.Content.ReadAsStringAsync(), JsonOptions);
+                Assert.Single(verifyElement);
+                Assert.Equal(targetElement.Id, verifyElement.First().Id);
             }
         }
 

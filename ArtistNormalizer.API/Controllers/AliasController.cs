@@ -1,5 +1,6 @@
 ﻿using ArtistNormalizer.API.Domain.Models;
 using ArtistNormalizer.API.Domain.Services;
+using ArtistNormalizer.API.Domain.Services.Communication;
 using ArtistNormalizer.API.Extensions;
 using ArtistNormalizer.API.Resources;
 using AutoMapper;
@@ -34,7 +35,7 @@ namespace ArtistNormalizer.API.Controllers
         {
             logger.LogInformation("GET /alias/id/" + id);
 
-            var alias = (await aliasService.ListAsync(id, null, null)).FirstOrDefault();
+            Alias alias = (await aliasService.ListAsync(id, null, null)).FirstOrDefault();
             var resource = mapper.Map<Alias, AliasResource>(alias);
             return resource;
         }
@@ -42,12 +43,21 @@ namespace ArtistNormalizer.API.Controllers
         [HttpGet]
         public async Task<IEnumerable<AliasResource>> FindAsync(int? id, string name, string franchise, int? franchiseId)
         {
-            logger.LogInformation($"GET /alias/ - id:{id}, name:{name}, franchise:{franchise}, franchiseId:{franchiseId}");
+            logger.LogInformation($"GET /alias - id:{id}, name:{name}, franchise:{franchise}, franchiseId:{franchiseId}");
+
+            if (name is not null)
+            {
+                name = name.Trim();
+            }
+            if (franchise is not null)
+            {
+                franchise = franchise.Trim();
+            }
 
             int? resolvedFranchiseId = null;
             if(franchise is not null)
             {
-                Franchise resolvedFranchise = await franchiseService.FindByNameAsync(franchise);
+                Franchise resolvedFranchise = (await franchiseService.ListAsync(null, franchise)).FirstOrDefault();
                 resolvedFranchiseId = resolvedFranchise.Id;
             }
 
@@ -65,7 +75,7 @@ namespace ArtistNormalizer.API.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState.GetErrorMessages());
 
-            var resolvedAlias = (await aliasService.ListAsync(null, resource.Name, resource.franchiseid)).FirstOrDefault();
+            Alias resolvedAlias = (await aliasService.ListAsync(null, resource.Name, resource.franchiseid)).FirstOrDefault();
             if (resolvedAlias != null)
             {
                 if (resolvedAlias.ArtistId != resource.artistid)
@@ -77,13 +87,13 @@ namespace ArtistNormalizer.API.Controllers
                 return Ok(existingAlias);
             }
 
-            var resolvedArtist = await artistService.FindByIdAsync(resource.artistid);
+            Artist resolvedArtist = (await artistService.ListAsync(resource.artistid, null)).FirstOrDefault();
             if (null == resolvedArtist)
             {
                 return BadRequest($"Could not find artist with id {resource.artistid}");
             }
 
-            var resolvedFranchise = await franchiseService.FindByIdAsync(resource.franchiseid);
+            Franchise resolvedFranchise = (await franchiseService.ListAsync(resource.franchiseid, null)).FirstOrDefault();
             if (null == resolvedFranchise)
             {
                 return BadRequest($"Could not find franchise with id {resource.franchiseid}");
@@ -96,7 +106,7 @@ namespace ArtistNormalizer.API.Controllers
                 Name = resource.Name
             };
 
-            var aliasResult = await aliasService.SaveAsync(newAlias);
+            AliasResponse aliasResult = await aliasService.SaveAsync(newAlias);
             if (!aliasResult.Success)
                 return BadRequest(aliasResult.Message);
 
@@ -115,7 +125,7 @@ namespace ArtistNormalizer.API.Controllers
                 return BadRequest(result.Message);
 
             // Delete artist if we just deleted its last alias
-            var artist = await artistService.FindByIdAsync(result.Alias.ArtistId);
+            Artist artist = (await artistService.ListAsync(result.Alias.ArtistId, null)).FirstOrDefault();
             if (artist.Aliases.Count == 0)
             {
                 var artistResult = await artistService.DeleteAsync(artist.Id);
@@ -124,7 +134,7 @@ namespace ArtistNormalizer.API.Controllers
             }
 
             // Delete franchise if we just deleted its last alias
-            var franchise = await franchiseService.FindByIdAsync(result.Alias.FranchiseId);
+            Franchise franchise = (await franchiseService.ListAsync(result.Alias.FranchiseId, null)).FirstOrDefault();
             if (franchise.Aliases.Count == 0)
             {
                 var franchiseResult = await franchiseService.DeleteAsync(franchise.Id);

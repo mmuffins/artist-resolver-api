@@ -7,9 +7,7 @@ namespace ArtistNormalizer.API.Domain.Services
 {
     public interface IFranchiseService
     {
-        Task<IEnumerable<Franchise>> ListAsync();
-        Task<Franchise> FindByIdAsync(int id);
-        Task<Franchise> FindByNameAsync(string name);
+        Task<IEnumerable<Franchise>> ListAsync(int? id, string name);
         Task<FranchiseResponse> SaveAsync(Franchise franchise);
         Task<FranchiseResponse> DeleteAsync(int id);
     }

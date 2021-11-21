@@ -3,6 +3,7 @@ using ArtistNormalizer.API.Domain.Repositories;
 using ArtistNormalizer.API.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace ArtistNormalizer.API.Persistence.Repositories
@@ -11,9 +12,21 @@ namespace ArtistNormalizer.API.Persistence.Repositories
     {
         public FranchiseRepository(AppDbContext context) : base(context) { }
 
-        public async Task<IEnumerable<Franchise>> ListAsync()
+        public async Task<IEnumerable<Franchise>> ListAsync(int? id, string name)
         {
-            return await context.Franchises
+            IQueryable<Franchise> filter = context.Franchises;
+
+            if (id is not null)
+            {
+                filter = filter.Where(a => a.Id == id);
+            }
+
+            if (name is not null)
+            {
+                filter = filter.Where(a => a.Name == name);
+            }
+
+            return await filter
                 .Include(a => a.Aliases)
                 .ToListAsync();
         }
@@ -21,20 +34,6 @@ namespace ArtistNormalizer.API.Persistence.Repositories
         public async Task AddAsync(Franchise franchise)
         {
             await context.Franchises.AddAsync(franchise);
-        }
-
-        public async Task<Franchise> FindByIdAsync(int id)
-        {
-            return await context.Franchises
-                .Include(a => a.Aliases)
-                .SingleOrDefaultAsync(a => a.Id == id);
-        }
-
-        public async Task<Franchise> FindByNameAsync(string name)
-        {
-            return await context.Franchises
-                .Include(a => a.Aliases)
-                .SingleOrDefaultAsync(a => a.Name == name);
         }
 
         public void Remove(Franchise franchise)

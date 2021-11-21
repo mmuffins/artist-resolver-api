@@ -43,14 +43,6 @@ namespace ArtistNormalizer.API.Persistence.Repositories
                 .ToListAsync();
         }
 
-        public async Task<IEnumerable<Alias>> ListAsync()
-        {
-            return await context.Aliases
-                .Include(a => a.Franchise)
-                .Include(a => a.Artist)
-                .ToListAsync();
-        }
-
         public void Remove(Alias artist)
         {
             context.Aliases.Remove(artist);

@@ -7,9 +7,7 @@ namespace ArtistNormalizer.API.Domain.Services
 {
     public interface IArtistService
     {
-        Task<IEnumerable<Artist>> ListAsync();
-        Task<Artist> FindByIdAsync(int id);
-        Task<Artist> FindByNameAsync(string name);
+        Task<IEnumerable<Artist>> ListAsync(int? id, string name);
         Task<ArtistResponse> SaveAsync(Artist artist);
         Task<ArtistResponse> DeleteAsync(int id);
     }

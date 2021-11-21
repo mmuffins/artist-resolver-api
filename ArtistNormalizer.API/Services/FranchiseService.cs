@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace ArtistNormalizer.API.Services
@@ -21,19 +22,9 @@ namespace ArtistNormalizer.API.Services
             this.unitOfWork = unitOfWork;
         }
 
-        public async Task<IEnumerable<Franchise>> ListAsync()
+        public async Task<IEnumerable<Franchise>> ListAsync(int? id, string name)
         {
-            return await franchiseRepository.ListAsync();
-        }
-
-        public async Task<Franchise> FindByIdAsync(int id)
-        {
-            return await franchiseRepository.FindByIdAsync(id);
-        }
-
-        public async Task<Franchise> FindByNameAsync(string name)
-        {
-            return await franchiseRepository.FindByNameAsync(name);
+            return await franchiseRepository.ListAsync(id, name);
         }
 
         public async Task<FranchiseResponse> SaveAsync(Franchise franchise)
@@ -53,7 +44,8 @@ namespace ArtistNormalizer.API.Services
 
         public async Task<FranchiseResponse> DeleteAsync(int id)
         {
-            var existingFranchise = await franchiseRepository.FindByIdAsync(id);
+            var existingFranchise = (await franchiseRepository.ListAsync(id, null))
+                .FirstOrDefault();
 
             if (existingFranchise == null)
                 return new FranchiseResponse("Franchise not found.");

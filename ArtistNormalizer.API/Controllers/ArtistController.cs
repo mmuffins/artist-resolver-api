@@ -1,11 +1,13 @@
 ﻿using ArtistNormalizer.API.Domain.Models;
 using ArtistNormalizer.API.Domain.Services;
+using ArtistNormalizer.API.Domain.Services.Communication;
 using ArtistNormalizer.API.Extensions;
 using ArtistNormalizer.API.Resources;
 using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace ArtistNormalizer.API.Controllers
@@ -24,33 +26,28 @@ namespace ArtistNormalizer.API.Controllers
             this.logger = logger;
         }
 
-        [HttpGet]
-        public async Task<IEnumerable<ArtistResource>> GetAllAsync()
-        {
-            logger.LogInformation("GET /artist/");
-            var artists = await artistService.ListAsync();
-            var resources = mapper.Map<IEnumerable<Artist>, IEnumerable<ArtistResource>>(artists);
-            return resources;
-        }
-
         [HttpGet("id/{id}")]
         public async Task<ArtistResource> FindByIdAsync(int id)
         {
             logger.LogInformation("GET /artist/id/" + id);
-            var artist = await artistService.FindByIdAsync(id);
+            var artist = (await artistService.ListAsync(id, null)).FirstOrDefault();
             var resources = mapper.Map<Artist, ArtistResource>(artist);
             return resources;
         }
 
-        [HttpGet("name/{name}")]
-        public async Task<ArtistResource> FindByNameAsync(string name)
+        [HttpGet]
+        public async Task<IEnumerable<ArtistResource>> FindAsync(int? id, string name)
         {
-            logger.LogInformation("GET /artist/name/" + name);
-            
-            name = name.Trim();
-            var artist = await artistService.FindByNameAsync(name);
-            var resources = mapper.Map<Artist, ArtistResource>(artist);
-            return resources;
+            logger.LogInformation($"GET /artist - id:{id}, name:{name}");
+
+            if (name is not null)
+            {
+                name = name.Trim();
+            }
+
+            IEnumerable<Artist> artist = await artistService.ListAsync(id, name);
+            var resource = mapper.Map<IEnumerable<Artist>, IEnumerable<ArtistResource>>(artist);
+            return resource;
         }
 
         [HttpPost]
@@ -62,15 +59,15 @@ namespace ArtistNormalizer.API.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState.GetErrorMessages());
 
-            var resolvedArtist = await artistService.FindByNameAsync(resource.Name);
+            Artist resolvedArtist = (await artistService.ListAsync(null, resource.Name)).FirstOrDefault();
             if (resolvedArtist != null)
             {
                 var existingAlias = mapper.Map<Artist, ArtistResource>(resolvedArtist);
                 return Ok(existingAlias);
             }
 
-            var artist = mapper.Map<SaveArtistResource, Artist>(resource);
-            var result = await artistService.SaveAsync(artist);
+            Artist artist = mapper.Map<SaveArtistResource, Artist>(resource);
+            ArtistResponse result = await artistService.SaveAsync(artist);
 
             if (!result.Success)
                 return BadRequest(result.Message);

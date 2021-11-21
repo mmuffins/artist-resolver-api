@@ -1,11 +1,13 @@
 ﻿using ArtistNormalizer.API.Domain.Models;
 using ArtistNormalizer.API.Domain.Services;
+using ArtistNormalizer.API.Domain.Services.Communication;
 using ArtistNormalizer.API.Extensions;
 using ArtistNormalizer.API.Resources;
 using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace ArtistNormalizer.API.Controllers
@@ -24,33 +26,28 @@ namespace ArtistNormalizer.API.Controllers
             this.logger = logger;
         }
 
-        [HttpGet]
-        public async Task<IEnumerable<FranchiseResource>> GetAllAsync()
-        {
-            logger.LogInformation("GET /franchise/");
-            var franchises = await franchiseService.ListAsync();
-            var resources = mapper.Map<IEnumerable<Franchise>, IEnumerable<FranchiseResource>>(franchises);
-            return resources;
-        }
-
         [HttpGet("id/{id}")]
         public async Task<FranchiseResource> FindByIdAsync(int id)
         {
             logger.LogInformation("GET /franchise/id/" + id);
-            var franchise = await franchiseService.FindByIdAsync(id);
+            var franchise = (await franchiseService.ListAsync(id, null)).FirstOrDefault();
             var resources = mapper.Map<Franchise, FranchiseResource>(franchise);
             return resources;
         }
 
-        [HttpGet("name/{name}")]
-        public async Task<FranchiseResource> FindByNameAsync(string name)
+        [HttpGet]
+        public async Task<IEnumerable<FranchiseResource>> FindAsync(int? id, string name)
         {
-            logger.LogInformation("GET /franchise/name/" + name);
-            
-            name = name.Trim();
-            var franchise = await franchiseService.FindByNameAsync(name);
-            var resources = mapper.Map<Franchise, FranchiseResource>(franchise);
-            return resources;
+            logger.LogInformation($"GET /franchise - id:{id}, name:{name}");
+
+            if (name is not null)
+            {
+                name = name.Trim();
+            }
+
+            IEnumerable<Franchise> franchise = await franchiseService.ListAsync(id, name);
+            var resource = mapper.Map<IEnumerable<Franchise>, IEnumerable<FranchiseResource>>(franchise);
+            return resource;
         }
 
         [HttpPost]
@@ -62,15 +59,15 @@ namespace ArtistNormalizer.API.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState.GetErrorMessages());
 
-            var resolvedFranchise = await franchiseService.FindByNameAsync(resource.Name);
+            Franchise resolvedFranchise = (await franchiseService.ListAsync(null, resource.Name)).FirstOrDefault();
             if (resolvedFranchise != null)
             {
                 var existingAlias = mapper.Map<Franchise, FranchiseResource>(resolvedFranchise);
                 return Ok(existingAlias);
             }
 
-            var franchise = mapper.Map<SaveFranchiseResource, Franchise>(resource);
-            var result = await franchiseService.SaveAsync(franchise);
+            Franchise franchise = mapper.Map<SaveFranchiseResource, Franchise>(resource);
+            FranchiseResponse result = await franchiseService.SaveAsync(franchise);
 
             if (!result.Success)
                 return BadRequest(result.Message);
