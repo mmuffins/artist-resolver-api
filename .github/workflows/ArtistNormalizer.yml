@@ -30,7 +30,12 @@ jobs:
       run: dotnet publish ArtistNormalizer.API\ArtistNormalizer.API.csproj --configuration ${{ env.Configuration }} -p:PublishSingleFile=true --self-contained false -p:PublishTrimmed=false -p:PublishReadyToRun=false --runtime ${{ env.Runtime }} --framework ${{ env.Framework }} --output publish
       
     - name: dotnet test
-      run: dotnet test ArtistNormalizer.API.sln --configuration ${{ env.Configuration }} --framework ${{ env.Framework }} --verbosity normal
+      run: dotnet test ArtistNormalizer.API.sln --configuration ${{ env.Configuration }} --framework ${{ env.Framework }} --verbosity normal --logger "trx;LogFileName=TestResults.trx"
+      
+    - name: Publish Unit Test Results
+      uses: EnricoMi/publish-unit-test-result-action/composite@v1
+      with:
+        files: Tests/**/TestResults.trx
       
     - name: Upload artifact
       uses: actions/upload-artifact@v2
