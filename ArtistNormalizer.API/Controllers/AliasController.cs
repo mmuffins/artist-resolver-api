@@ -57,6 +57,11 @@ namespace ArtistNormalizer.API.Controllers
             int? resolvedFranchiseId = null;
             if(franchise is not null)
             {
+                // make sure to always assign a dummy value if the franchise parameter was passed
+                // otherwise the query below would return null which is then passed to the aliasService.ListAsync
+                // function that treats it like no franchise was provided at all
+                resolvedFranchiseId = -1;
+                
                 Franchise resolvedFranchise = (await franchiseService.ListAsync(null, franchise)).FirstOrDefault();
                 if(resolvedFranchise is not null)
                 {
