@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace ArtistNormalizer.API.Services
@@ -21,19 +22,9 @@ namespace ArtistNormalizer.API.Services
             this.unitOfWork = unitOfWork;
         }
 
-        public async Task<IEnumerable<Artist>> ListAsync()
+        public async Task<IEnumerable<Artist>> ListAsync(int? id, string name)
         {
-            return await artistRepository.ListAsync();
-        }
-
-        public async Task<Artist> FindByIdAsync(int id)
-        {
-            return await artistRepository.FindByIdAsync(id);
-        }
-
-        public async Task<Artist> FindByNameAsync(string name)
-        {
-            return await artistRepository.FindByNameAsync(name);
+            return await artistRepository.ListAsync(id, name);
         }
 
         public async Task<ArtistResponse> SaveAsync(Artist artist)
@@ -53,7 +44,8 @@ namespace ArtistNormalizer.API.Services
 
         public async Task<ArtistResponse> DeleteAsync(int id)
         {
-            var existingArtist = await artistRepository.FindByIdAsync(id);
+            var existingArtist = (await artistRepository.ListAsync(id, null))
+                .FirstOrDefault();
 
             if (existingArtist == null)
                 return new ArtistResponse("Artist not found.");

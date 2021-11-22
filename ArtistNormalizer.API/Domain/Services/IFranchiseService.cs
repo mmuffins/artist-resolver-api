@@ -5,10 +5,10 @@ using System.Threading.Tasks;
 
 namespace ArtistNormalizer.API.Domain.Services
 {
-    public interface IArtistService
+    public interface IFranchiseService
     {
-        Task<IEnumerable<Artist>> ListAsync(int? id, string name);
-        Task<ArtistResponse> SaveAsync(Artist artist);
-        Task<ArtistResponse> DeleteAsync(int id);
+        Task<IEnumerable<Franchise>> ListAsync(int? id, string name);
+        Task<FranchiseResponse> SaveAsync(Franchise franchise);
+        Task<FranchiseResponse> DeleteAsync(int id);
     }
 }

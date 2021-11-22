@@ -2,15 +2,9 @@
 
 namespace ArtistNormalizer.API.Resources
 {
-    public class SaveAliasResource
+    public class SaveFranchiseResource
     {
         [Required]
         public string Name { get; set; }
-
-        [Required]
-        public int artistid { get; set; }
-
-        [Required]
-        public int franchiseid { get; set; }
     }
 }

@@ -8,6 +8,8 @@ namespace ArtistNormalizer.API.Mapping
     {
         public ModelToResourceProfile()
         {
+            CreateMap<Franchise, FranchiseResource>();
+
             CreateMap<Artist, ArtistResource>();
 
             CreateMap<Alias, AliasResource>()

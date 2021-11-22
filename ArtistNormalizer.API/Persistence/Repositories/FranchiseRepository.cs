@@ -8,13 +8,13 @@ using System.Threading.Tasks;
 
 namespace ArtistNormalizer.API.Persistence.Repositories
 {
-    public class ArtistRepository : BaseRepository, IArtistRepository
+    public class FranchiseRepository : BaseRepository, IFranchiseRepository
     {
-        public ArtistRepository(AppDbContext context) : base(context) { }
+        public FranchiseRepository(AppDbContext context) : base(context) { }
 
-        public async Task<IEnumerable<Artist>> ListAsync(int? id, string name)
+        public async Task<IEnumerable<Franchise>> ListAsync(int? id, string name)
         {
-            IQueryable<Artist> filter = context.Artists;
+            IQueryable<Franchise> filter = context.Franchises;
 
             if (id is not null)
             {
@@ -31,14 +31,14 @@ namespace ArtistNormalizer.API.Persistence.Repositories
                 .ToListAsync();
         }
 
-        public async Task AddAsync(Artist artist)
+        public async Task AddAsync(Franchise franchise)
         {
-            await context.Artists.AddAsync(artist);
+            await context.Franchises.AddAsync(franchise);
         }
 
-        public void Remove(Artist artist)
+        public void Remove(Franchise franchise)
         {
-            context.Artists.Remove(artist);
+            context.Franchises.Remove(franchise);
         }
     }
 }
