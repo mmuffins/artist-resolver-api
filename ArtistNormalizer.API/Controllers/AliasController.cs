@@ -58,7 +58,10 @@ namespace ArtistNormalizer.API.Controllers
             if(franchise is not null)
             {
                 Franchise resolvedFranchise = (await franchiseService.ListAsync(null, franchise)).FirstOrDefault();
-                resolvedFranchiseId = resolvedFranchise.Id;
+                if(resolvedFranchise is not null)
+                {
+                    resolvedFranchiseId = resolvedFranchise.Id;
+                }
             }
 
             IEnumerable<Alias> alias = await aliasService.ListAsync(id, name, resolvedFranchiseId);
