@@ -31,11 +31,13 @@ jobs:
       
     - name: dotnet test
       run: dotnet test ArtistNormalizer.API.sln --configuration ${{ env.Configuration }} --framework ${{ env.Framework }} --verbosity normal --logger "trx;LogFileName=TestResults.trx"
-      
+              
     - name: Publish Unit Test Results
-      uses: EnricoMi/publish-unit-test-result-action/composite@v1
+      uses: dorny/test-reporter@v1.5.0
       with:
-        files: Tests/**/TestResults.trx
+        name: Unit Test Results
+        path: Tests/**/TestResults.trx
+        reporter: dotnet-trx
       
     - name: Upload artifact
       uses: actions/upload-artifact@v2
