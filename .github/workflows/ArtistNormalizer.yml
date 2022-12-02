@@ -12,7 +12,7 @@ jobs:
     runs-on: windows-latest
     env:
       Configuration: Release
-      Framework: net6.0
+      Framework: net7.0
       Runtime: win-x64
       
     steps:
@@ -21,13 +21,13 @@ jobs:
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v1
       with:
-        dotnet-version: 6.0.*
+        dotnet-version: 7.0.*
       
     - name: dotnet restore
       run: dotnet restore
       
     - name: dotnet publish
-      run: dotnet publish ArtistNormalizer.API\ArtistNormalizer.API.csproj --configuration ${{ env.Configuration }} -p:PublishSingleFile=true --self-contained false -p:PublishTrimmed=false -p:PublishReadyToRun=false --runtime ${{ env.Runtime }} --framework ${{ env.Framework }} --output publish
+      run: dotnet publish ArtistNormalizer.API\ArtistNormalizer.API.csproj --configuration ${{ env.Configuration }} -p:PublishSingleFile=false --self-contained false -p:PublishTrimmed=false -p:PublishReadyToRun=true --runtime ${{ env.Runtime }} --framework ${{ env.Framework }} --output publish
       
     - name: dotnet test
       run: dotnet test ArtistNormalizer.API.sln --configuration ${{ env.Configuration }} --framework ${{ env.Framework }} --verbosity normal --logger "trx;LogFileName=TestResults.trx"
