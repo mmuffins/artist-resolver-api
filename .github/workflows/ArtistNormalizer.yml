@@ -49,7 +49,7 @@ jobs:
         reporter: dotnet-trx
 
   deploy:
-    # if: ${{ github.event_name != 'pull_request'  && github.ref_name == 'main' }}
+    if: ${{ github.event_name != 'pull_request'  && github.ref_name == 'main' }}
     runs-on: windows-latest
     needs: build
 
