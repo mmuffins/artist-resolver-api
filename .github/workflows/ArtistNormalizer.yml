@@ -48,9 +48,9 @@ jobs:
         path: Tests/**/TestResults.trx
         reporter: dotnet-trx
 
-  deploy:
-    if: ${{ github.event_name != 'pull_request'  && github.ref_name == 'main' }}
-    runs-on: windows-latest
+  release:
+    # if: ${{ github.event_name != 'pull_request'  && github.ref_name == 'main' }}
+    runs-on: ubuntu-latest
     needs: build
 
     steps:
