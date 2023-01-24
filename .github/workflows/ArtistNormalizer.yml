@@ -12,7 +12,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     env:
       build_configuration: Release
       build_runtime: win-x64
@@ -21,9 +21,6 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     
-    - name: Zip Files
-      run: zip "${{ github.workspace }}\publish\EWE.zip" "${{ github.workspace }}\*" -r
-
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v3
       with:
@@ -64,7 +61,10 @@ jobs:
         path: ${{ github.workspace }}/publish
       
     - name: Zip Files
-      run: Compress-Archive -Path "${{ github.workspace }}\publish\*" -DestinationPath "${{ github.workspace }}\publish\ArtistNormalizer.zip"
+      run: zip "${{ github.workspace }}\publish\ArtistNormalizer.zip" "${{ github.workspace }}\publish\*" -r
+      
+    # - name: Zip Files
+    #  run: Compress-Archive -Path "${{ github.workspace }}\publish\*" -DestinationPath "${{ github.workspace }}\publish\ArtistNormalizer.zip"
       
     - name: Create Release
       uses: actions/create-release@v1
