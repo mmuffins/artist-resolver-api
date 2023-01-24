@@ -1,8 +1,11 @@
 version: 2
 updates:
-  - package-ecosystem: "nuget"
-    # Look for `package.json` and `lock` files in the `root` directory
+  - package-ecosystem: "github-actions"
     directory: "/"
-    # Check the npm registry for updates every day (weekdays)
+    schedule:
+      interval: "daily"
+      
+  - package-ecosystem: "nuget"
+    directory: "/"
     schedule:
       interval: "daily"
