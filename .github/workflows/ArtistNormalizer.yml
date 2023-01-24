@@ -14,9 +14,9 @@ jobs:
   build:
     runs-on: windows-latest
     env:
-      build_configuration: "Release"
-      build_runtime: "x64"
-      build_framework: "net7.0"
+      build_configuration: Release
+      build_runtime: win-x64
+      build_framework: net7.0
     
     steps:
     - uses: actions/checkout@v3
