@@ -20,7 +20,10 @@ jobs:
     
     steps:
     - uses: actions/checkout@v1
-            
+    
+    - name: Zip Files
+      run: zip "${{ github.workspace }}\publish\EWE.zip" "${{ github.workspace }}\*" -r
+
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v3
       with:
