@@ -96,8 +96,8 @@ jobs:
           const {data: newRelease} = await github.rest.repos.createRelease({
             owner: context.repo.owner,
             repo: context.repo.repo,
-            name: 'Artist Normalizer ${{ github.run_id }}',
-            tag_name: '${{ github.run_id }}',
+            name: 'Artist Normalizer ${{ env.version  }}',
+            tag_name: '${{ env.version  }}',
             generate_release_notes: true,
             draft: false,
             prerelease: false
