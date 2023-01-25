@@ -15,7 +15,6 @@ jobs:
     runs-on: windows-latest
     permissions:
       checks: write
-      contents: write
       
     env:
       build_configuration: Release
