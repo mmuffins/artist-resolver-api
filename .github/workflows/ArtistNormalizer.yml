@@ -13,13 +13,17 @@ env:
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      checks: write
+      contents: write
+      
     env:
       build_configuration: Release
       build_runtime: win-x64
       build_framework: net7.0
     
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v3
     
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v3
