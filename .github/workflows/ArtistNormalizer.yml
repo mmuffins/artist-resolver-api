@@ -49,7 +49,7 @@ jobs:
         reporter: dotnet-trx
 
   release:
-    # if: ${{ github.event_name != 'pull_request'  && github.ref_name == 'main' }}
+    if: ${{ github.event_name != 'pull_request'  && github.ref_name == 'main' }}
     runs-on: ubuntu-latest
     needs: build
 
@@ -64,9 +64,6 @@ jobs:
       run: |
         cd "${{ github.workspace }}/publish/" 
         zip -r "ArtistNormalizer.zip" .
-      
-    # - name: Zip Files
-    #  run: Compress-Archive -Path "${{ github.workspace }}\publish\*" -DestinationPath "${{ github.workspace }}\publish\ArtistNormalizer.zip"
       
     - name: Create release
       uses: actions/github-script@v6
