@@ -61,7 +61,7 @@ jobs:
         path: ${{ github.workspace }}/publish
       
     - name: Zip Files
-      run: zip -r "${{ github.workspace }}/publish/ArtistNormalizer.zip" "${{ github.workspace }}/publish/"
+      run: zip "${{ github.workspace }}/publish/ArtistNormalizer.zip" "${{ github.workspace }}/"
       
     # - name: Zip Files
     #  run: Compress-Archive -Path "${{ github.workspace }}\publish\*" -DestinationPath "${{ github.workspace }}\publish\ArtistNormalizer.zip"
@@ -97,5 +97,5 @@ jobs:
             repo: context.repo.repo,
             release_id: '${{ steps.create-release.outputs.id }}',
             data: attachment,
-            name: 'AnidbExportParser.zip'
+            name: 'ArtistNormalizer.zip'
           });
