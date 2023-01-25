@@ -15,7 +15,6 @@ jobs:
     runs-on: windows-latest
     permissions:
       actions: write
-      checks: write
       contents: write
       
     env:
