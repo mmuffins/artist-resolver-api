@@ -14,3 +14,4 @@ updates:
         patterns:
         - "Microsoft.EntityFrameworkCore*"
         - "Microsoft.AspNetCore*"
+        - "xunit*"
