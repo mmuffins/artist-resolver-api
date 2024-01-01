@@ -37,7 +37,7 @@ jobs:
       run: dotnet publish ArtistNormalizer.API\ArtistNormalizer.API.csproj --configuration ${{ env.build_configuration }} -p:PublishSingleFile=false --self-contained false -p:PublishTrimmed=false -p:PublishReadyToRun=true --runtime ${{ env.build_runtime }} --framework ${{ env.build_framework }} -p:Version=${{ env.version }} -p:PackageVersion=${{ env.version }} --output publish
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: build
         path: ${{ github.workspace }}/publish
