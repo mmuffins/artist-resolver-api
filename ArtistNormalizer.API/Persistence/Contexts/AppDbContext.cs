@@ -29,7 +29,6 @@ namespace ArtistNormalizer.API.Persistence.Contexts
                 e.ToTable("MbArtists");
                 e.HasKey(p => p.Id);
                 e.HasIndex(p => p.MbId).IsUnique();
-                e.HasIndex(p => p.Name).IsUnique();
                 e.Property(x => x.Name).HasColumnType("TEXT COLLATE NOCASE");
             });
 

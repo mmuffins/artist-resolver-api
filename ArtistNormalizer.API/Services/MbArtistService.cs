@@ -63,5 +63,20 @@ namespace ArtistNormalizer.API.Services
                 return new MbArtistResponse($"An error occurred when deleting artist: {ex.Message}");
             }
         }
+
+        public async Task<MbArtistResponse> UpdateAsync(MbArtist artist)
+        {
+            try
+            {
+                mbArtistRepository.Update(artist);
+                await unitOfWork.CompleteAsync();
+
+                return new MbArtistResponse(artist);
+            }
+            catch (Exception ex)
+            {
+                return new MbArtistResponse($"An error occurred when updating the artist: {ex.Message}");
+            }
+        }
     }
 }

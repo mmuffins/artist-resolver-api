@@ -171,9 +171,85 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
+        public async Task MbArtist_Post_Duplicate()
+        {
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // Generate test data
+            var artList = GenerateMbArtists(1);
+
+            var jsonString = new StringContent(JsonSerializer.Serialize(new
+            {
+                artList[0].MbId,
+                artList[0].Name,
+                artList[0].OriginalName,
+                artList[0].Include
+            }), Encoding.UTF8, "application/json");
+
+            // First POST should be successful
+            var postResponse = await client.PostAsync(mbArtistEndpoint, jsonString);
+            postResponse.EnsureSuccessStatusCode();
+
+            var postResponseObj = JsonSerializer.Deserialize<MbArtistResource>(await postResponse.Content.ReadAsStringAsync(), JsonOptions);
+            Assert.Equal(artList[0].Name, postResponseObj.Name);
+
+            // Verify
+            // Attempt to post the same artist again
+            var secondPostResponse = await client.PostAsync(mbArtistEndpoint, jsonString);
+
+            // Expect a BadRequest due to duplicate entry
+            Assert.Equal(System.Net.HttpStatusCode.BadRequest, secondPostResponse.StatusCode);
+        }
+
+        [Fact]
         public async Task MbArtist_Update()
         {
-            throw new NotImplementedException();
+            // Add test data
+            int seedCount = 3;
+            await SeedData(1, 1, 1, seedCount);
+
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // get all elements
+            HttpResponseMessage allArtistsResponse = await client.GetAsync(mbArtistEndpoint);
+            allArtistsResponse.EnsureSuccessStatusCode();
+            var allArtists = JsonSerializer.Deserialize<IEnumerable<MbArtistResource>>(await allArtistsResponse.Content.ReadAsStringAsync(), JsonOptions)
+                .ToList();
+            Assert.Equal(seedCount, allArtists.Count());
+
+            // Update the posted artist
+            var updatedArtist = new SaveMbArtistResource
+            {
+                MbId = allArtists[1].MbId,
+                Name = "Updated Name",
+                OriginalName = "Updated Original Name"
+            };
+
+            var updateJsonString = new StringContent(JsonSerializer.Serialize(updatedArtist), Encoding.UTF8, "application/json");
+
+            var updateResponse = await client.PutAsync($"{mbArtistEndpoint}/id/{allArtists[1].Id}", updateJsonString);
+            updateResponse.EnsureSuccessStatusCode();
+
+            // Verify
+            var httpResponse = await client.GetAsync(mbArtistEndpoint);
+            httpResponse.EnsureSuccessStatusCode();
+
+            // Deserialize and examine results.
+            var verifyList = JsonSerializer.Deserialize<IEnumerable<MbArtistResource>>(await httpResponse.Content.ReadAsStringAsync(), JsonOptions);
+            var unchanged0 = verifyList.Where(x => x.Id.Equals(allArtists[0].Id)).First();
+            Assert.Equal(allArtists[0].MbId, unchanged0.MbId);
+            Assert.Equal(allArtists[0].Name, unchanged0.Name);
+            Assert.Equal(allArtists[0].OriginalName, unchanged0.OriginalName);
+
+            var unchanged1 = verifyList.Where(x => x.Id.Equals(allArtists[2].Id)).First();
+            Assert.Equal(allArtists[2].MbId, unchanged1.MbId);
+            Assert.Equal(allArtists[2].Name, unchanged1.Name);
+            Assert.Equal(allArtists[2].OriginalName, unchanged1.OriginalName);
+
+            var updated0 = verifyList.Where(x => x.Id.Equals(allArtists[1].Id)).First();
+            Assert.Equal(updatedArtist.MbId, updated0.MbId);
+            Assert.Equal(updatedArtist.Name, updated0.Name);
+            Assert.Equal(updatedArtist.OriginalName, updated0.OriginalName);
         }
     }
 }

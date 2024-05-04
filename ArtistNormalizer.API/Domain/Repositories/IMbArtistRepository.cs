@@ -9,5 +9,6 @@ namespace ArtistNormalizer.API.Domain.Repositories
         Task<IEnumerable<MbArtist>> ListAsync(int? id, string mbId, string name, string originalName);
         Task AddAsync(MbArtist artist);
         void Remove(MbArtist artist);
+        void Update(MbArtist artist);
     }
 }

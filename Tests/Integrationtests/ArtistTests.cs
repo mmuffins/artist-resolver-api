@@ -47,6 +47,12 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
+        public async Task Artist_Post_Duplicate()
+        {
+            throw new NotImplementedException();
+        }
+
+        [Fact]
         public async Task Artist_Delete()
         {
             // Add test data
@@ -199,6 +205,12 @@ namespace Tests.Integrationtests
             checkRemainingArtists.EnsureSuccessStatusCode();
             var checkArtist = JsonSerializer.Deserialize<IEnumerable<ArtistResource>>(await checkRemainingArtists.Content.ReadAsStringAsync(), JsonOptions);
             Assert.Empty(checkArtist);
+        }
+
+        [Fact]
+        public async Task Artist_Update()
+        {
+            throw new NotImplementedException();
         }
     }
 }

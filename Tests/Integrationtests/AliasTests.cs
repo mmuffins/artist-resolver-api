@@ -136,13 +136,6 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
-        public async Task Artist_Update()
-        {
-            throw new NotImplementedException();
-        }
-
-
-        [Fact]
         public async Task Alias_Delete()
         {
             // Add test data

@@ -68,8 +68,7 @@ namespace ArtistNormalizer.API.Controllers
             MbArtist resolvedArtist = (await mbArtistService.ListAsync(null, resource.MbId)).FirstOrDefault();
             if (resolvedArtist != null)
             {
-                var existingArtist = mapper.Map<MbArtist, MbArtistResource>(resolvedArtist);
-                return Ok(existingArtist);
+                return BadRequest("Artist with the specified MBID already exists.");
             }
 
             MbArtist artist = mapper.Map<SaveMbArtistResource, MbArtist>(resource);
@@ -82,6 +81,28 @@ namespace ArtistNormalizer.API.Controllers
             return Ok(artistResource);
         }
 
+        [HttpPut("id/{id}")]
+        public async Task<IActionResult> UpdateAsync(int id, [FromBody] SaveMbArtistResource resource)
+        {
+            logger.LogInformation($"PUT /mbartist/id/{id}");
+
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState.GetErrorMessages());
+
+            var existingArtist = (await mbArtistService.ListAsync(id, null)).FirstOrDefault();
+            if (existingArtist == null)
+                return NotFound();
+
+            // Mapping updated data
+            mapper.Map(resource, existingArtist);
+            MbArtistResponse result = await mbArtistService.UpdateAsync(existingArtist);
+
+            if (!result.Success)
+                return BadRequest(result.Message);
+
+            var updatedResource = mapper.Map<MbArtist, MbArtistResource>(result.Artist);
+            return Ok(updatedResource);
+        }
         [HttpDelete("id/{id}")]
         public async Task<IActionResult> DeleteAsync(int id)
         {
