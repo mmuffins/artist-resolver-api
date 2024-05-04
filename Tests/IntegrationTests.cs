@@ -1,7 +1,10 @@
 ﻿using ArtistNormalizer.API;
 using ArtistNormalizer.API.Domain.Models;
+using ArtistNormalizer.API.Persistence.Contexts;
 using ArtistNormalizer.API.Resources;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using SQLitePCL;
 using System;
 using System.Collections.Generic;
@@ -16,9 +19,11 @@ using Xunit;
 namespace Tests
 {
     [Collection("Sequential")]
-    public class IntegrationTests : IClassFixture<CustomWebApplicationFactory<Startup>>
+    public class IntegrationTests : IClassFixture<CustomWebApplicationFactory<Startup>>, IAsyncLifetime
     {
         private readonly HttpClient client;
+        private readonly CustomWebApplicationFactory<Startup> factory;
+        private readonly AppDbContext dbContext;
         private const string franchiseEndpoint = "/api/franchise";
         private const string aliasEndpoint = "/api/alias";
         private const string artistEndpoint = "/api/artist";
@@ -26,61 +31,20 @@ namespace Tests
 
         public IntegrationTests(CustomWebApplicationFactory<Startup> factory)
         {
+            this.factory = factory;
             client = factory.CreateClient();
+            dbContext = factory.Services.GetRequiredService<AppDbContext>();
         }
 
-        private async Task CleanupFranchise()
+        public async Task InitializeAsync()
         {
-            var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            HttpResponseMessage httpResponse = await client.GetAsync(franchiseEndpoint);
-            httpResponse.EnsureSuccessStatusCode();
-            var responseList = JsonSerializer.Deserialize<IEnumerable<FranchiseResource>>(await httpResponse.Content.ReadAsStringAsync(), jsonOptions);
-
-            foreach (var franchise in responseList)
-            {
-                HttpResponseMessage deleteResponse = await client.DeleteAsync($"{franchiseEndpoint}/id/{franchise.Id}");
-                deleteResponse.EnsureSuccessStatusCode();
-            }
-
-            HttpResponseMessage checkEmptyResource = await client.GetAsync(franchiseEndpoint);
-            checkEmptyResource.EnsureSuccessStatusCode();
-
-            var checkEmptyObj = JsonSerializer.Deserialize<IEnumerable<Artist>>(await checkEmptyResource.Content.ReadAsStringAsync(), jsonOptions);
-            if (checkEmptyObj.Count() > 0)
-            {
-                throw new Exception("Franchise cleanup not successful.");
-            }
-
+            dbContext.Database.EnsureDeleted();
+            dbContext.Database.EnsureCreated();
         }
 
-        private async Task CleanupArtist()
+        public Task DisposeAsync()
         {
-            var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
-            HttpResponseMessage httpResponse = await client.GetAsync(artistEndpoint);
-            httpResponse.EnsureSuccessStatusCode();
-            var resourceList = JsonSerializer.Deserialize<IEnumerable<ArtistResource>>(await httpResponse.Content.ReadAsStringAsync(), jsonOptions);
-
-            foreach (var artist in resourceList)
-            {
-                HttpResponseMessage deleteResponse = await client.DeleteAsync($"{artistEndpoint}/id/{artist.Id}");
-                deleteResponse.EnsureSuccessStatusCode();
-            }
-
-            HttpResponseMessage checkEmptyResource = await client.GetAsync(artistEndpoint);
-            checkEmptyResource.EnsureSuccessStatusCode();
-
-            var checkEmptyObj = JsonSerializer.Deserialize<IEnumerable<Artist>>(await checkEmptyResource.Content.ReadAsStringAsync(), jsonOptions);
-            if (checkEmptyObj.Count() > 0)
-            {
-                throw new Exception("Artist cleanup not successful.");
-            }
-        }
-
-        private async Task Cleanup()
-        {
-            await CleanupArtist();
-            await CleanupFranchise();
+            return Task.CompletedTask;
         }
 
         private List<Franchise> GenerateFranchise(int franchiseCount)
@@ -229,7 +193,6 @@ namespace Tests
         [Fact]
         public async Task Artist_Post()
         {
-            await Cleanup();
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
             // Add test data
@@ -260,7 +223,6 @@ namespace Tests
         public async Task Artist_Delete()
         {
             // Add test data
-            await Cleanup();
             int seedCount = 3;
             await SeedData(seedCount, 2, 1, 1);
 
@@ -300,7 +262,6 @@ namespace Tests
         public async Task Artist_List()
         {
             // Add test data
-            await Cleanup();
             await SeedData(3, 2, 2, 1);
             int targetElementCount = 3;
 
@@ -319,7 +280,6 @@ namespace Tests
         public async Task Artist_FindById()
         {
             // Add test data
-            await Cleanup();
             await SeedData(5, 2, 1, 1);
 
             // Verify that an invalid id returns nothing
@@ -352,7 +312,6 @@ namespace Tests
         public async Task Artist_FindByName()
         {
             // Add test data
-            await Cleanup();
             await SeedData(2, 2, 5, 1);
 
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
@@ -378,7 +337,6 @@ namespace Tests
         [Fact]
         public async Task Alias_Post()
         {
-            await Cleanup();
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
             // Create new aliases
@@ -419,7 +377,6 @@ namespace Tests
         [Fact]
         public async Task Alias_Post_Duplicate_Name_Different_Franchise()
         {
-            await Cleanup();
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
             // Create new aliases
@@ -459,7 +416,6 @@ namespace Tests
         [Fact]
         public async Task Alias_Post_Duplicate_Name_Same_Franchise()
         {
-            await Cleanup();
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
             // Create new aliases
@@ -507,7 +463,6 @@ namespace Tests
         public async Task Alias_Delete()
         {
             // Add test data
-            await Cleanup();
             await SeedData(1, 3, 1, 1);
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
@@ -549,7 +504,6 @@ namespace Tests
         public async Task Alias_List()
         {
             // Add test data
-            await Cleanup();
             await SeedData(2, 3, 2, 1);
             int targetElementCount = 2 * 3 * 2;
 
@@ -568,7 +522,6 @@ namespace Tests
         public async Task Alias_FindByAliasName()
         {
             // Add test data
-            await Cleanup();
             await SeedData(2, 3, 1, 1);
 
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
@@ -595,7 +548,6 @@ namespace Tests
         public async Task Alias_FindByFranchiseName()
         {
             // Add test data
-            await Cleanup();
             await SeedData(2, 3, 1, 1);
 
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
@@ -621,7 +573,6 @@ namespace Tests
         public async Task Alias_FindByAliasName_And_FranchiseName()
         {
             // Add test data
-            await Cleanup();
             await SeedData(1, 3, 3, 1);
 
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
@@ -648,7 +599,6 @@ namespace Tests
         public async Task Alias_FindById()
         {
             // Add test data
-            await Cleanup();
             await SeedData(2, 3, 1, 1);
 
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
@@ -673,8 +623,6 @@ namespace Tests
         [Fact]
         public async Task Franchise_Post()
         {
-            await Cleanup();
-
             // Add test data
             var fList = GenerateFranchise(3);
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
@@ -705,7 +653,6 @@ namespace Tests
         public async Task Franchise_Delete()
         {
             // Add test data
-            await Cleanup();
             int seedCount = 3;
             await SeedData(1, 2, seedCount, 1);
 
@@ -745,7 +692,6 @@ namespace Tests
         public async Task Franchise_List()
         {
             // Add test data
-            await Cleanup();
             await SeedData(2, 3, 4, 1);
             int targetElementCount = 4;
 
@@ -764,7 +710,6 @@ namespace Tests
         public async Task Franchise_FindByName()
         {
             // Add test data
-            await Cleanup();
             await SeedData(2, 2, 5, 1);
 
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
@@ -791,7 +736,6 @@ namespace Tests
         public async Task Franchise_FindById()
         {
             // Add test data
-            await Cleanup();
             await SeedData(1, 2, 5, 1);
 
             // Verify that an invalid id returns nothing
@@ -824,7 +768,6 @@ namespace Tests
         public async Task Alias_Cleanup_After_Parent_Artist_Removed()
         {
             // Add test data
-            await Cleanup();
             await SeedData(1, 2, 1, 1);
 
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
@@ -865,7 +808,6 @@ namespace Tests
         public async Task Alias_Cleanup_After_Parent_Franchise_Removed()
         {
             // Add test data
-            await Cleanup();
             await SeedData(1, 2, 1, 1);
 
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
@@ -906,7 +848,6 @@ namespace Tests
         public async Task Artist_Cleanup_After_Last_Alias_Removed()
         {
             // Add test data
-            await Cleanup();
             await SeedData(1, 2, 1, 1);
 
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
@@ -946,7 +887,6 @@ namespace Tests
         [Fact]
         public async Task Franchise_Cleanup_After_Last_Alias_Removed()
         {
-            await Cleanup();
             await SeedData(1, 2, 1, 1);
 
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
@@ -980,7 +920,6 @@ namespace Tests
         public async Task MbArtist_FindById()
         {
             // Add test data
-            await Cleanup();
             await SeedData(0, 0, 0, 5);
 
             // Verify that an invalid id returns nothing
@@ -1013,7 +952,6 @@ namespace Tests
         public async Task MbArtist_FindByMbId()
         {
             // Add test data
-            await Cleanup();
             await SeedData(1, 1, 1, 5);
 
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
@@ -1041,7 +979,6 @@ namespace Tests
         public async Task MbArtist_List()
         {
             // Add test data
-            await Cleanup();
             await SeedData(0, 0, 0, 5);
             int targetElementCount = 5;
 
@@ -1060,7 +997,6 @@ namespace Tests
         [Fact]
         public async Task MbArtist_Post()
         {
-            await Cleanup();
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
             // Add test data
@@ -1098,7 +1034,6 @@ namespace Tests
         public async Task MbArtist_Delete()
         {
             // Add test data
-            //await Cleanup();
             int seedCount = 3;
             await SeedData(1, 1, 1, seedCount);
 

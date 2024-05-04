@@ -23,4 +23,8 @@
     <ProjectReference Include="..\ArtistNormalizer.API\ArtistNormalizer.API.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Integrationtests\" />
+  </ItemGroup>
+
 </Project>

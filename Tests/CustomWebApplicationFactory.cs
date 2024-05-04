@@ -43,7 +43,7 @@ namespace Tests
                     // Ensure the database for the context is dropped and recreated.
                     options.UseInMemoryDatabase("InMemoryAppDb");
                     options.UseInternalServiceProvider(serviceProvider);
-                });
+                }, ServiceLifetime.Scoped);
 
                 // Build the service provider.
                 var sp = services.BuildServiceProvider();
