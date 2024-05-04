@@ -10,7 +10,6 @@ namespace ArtistNormalizer.API
         // Based on https://www.freecodecamp.org/news/an-awesome-guide-on-how-to-build-restful-apis-with-asp-net-core-87b818123e28/
         public static void Main(string[] args)
         {
-            //CreateHostBuilder(args).Build().Run();
             var host = BuildWebHost(args);
 
             using (var scope = host.Services.CreateScope())
@@ -26,12 +25,5 @@ namespace ArtistNormalizer.API
             WebHost.CreateDefaultBuilder(args)
             .UseStartup<Startup>()
             .Build();
-
-        //public static IHostBuilder CreateHostBuilder(string[] args) =>
-        //    Host.CreateDefaultBuilder(args)
-        //        .ConfigureWebHostDefaults(webBuilder =>
-        //        {
-        //            webBuilder.UseStartup<Startup>();
-        //        });
     }
 }

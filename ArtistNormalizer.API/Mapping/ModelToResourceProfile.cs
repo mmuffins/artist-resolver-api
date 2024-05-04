@@ -12,6 +12,8 @@ namespace ArtistNormalizer.API.Mapping
 
             CreateMap<Artist, ArtistResource>();
 
+            CreateMap<MbArtist, MbArtistResource>();
+
             CreateMap<Alias, AliasResource>()
                 .ForMember(dest => dest.Artist, opt => opt.MapFrom(src => src.Artist.Name));
         }

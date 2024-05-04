@@ -32,14 +32,15 @@ namespace Tests
         {
             builder.ConfigureServices(services =>
             {
-                // Create a new service provider.
+                // Create a new service provider with in-memory database support.
                 var serviceProvider = new ServiceCollection()
                     .AddEntityFrameworkInMemoryDatabase()
                     .BuildServiceProvider();
 
-                // Add a database context (AppDbContext) using an in-memory database for testing.
+                // Replace the existing DB context with one using an in-memory database.
                 services.AddDbContext<AppDbContext>(options =>
                 {
+                    // Ensure the database for the context is dropped and recreated.
                     options.UseInMemoryDatabase("InMemoryAppDb");
                     options.UseInternalServiceProvider(serviceProvider);
                 });
@@ -47,18 +48,19 @@ namespace Tests
                 // Build the service provider.
                 var sp = services.BuildServiceProvider();
 
-                // Create a scope to obtain a reference to the database contexts
+                // Create a scope to obtain a reference to the database contexts.
                 using (var scope = sp.CreateScope())
                 {
                     var scopedServices = scope.ServiceProvider;
                     var appDb = scopedServices.GetRequiredService<AppDbContext>();
-
                     var logger = scopedServices.GetRequiredService<ILogger<CustomWebApplicationFactory<TStartup>>>();
 
-                    // Ensure the database is created.
+                    // Ensure the database is dropped and recreated for each test.
+                    appDb.Database.EnsureDeleted();
                     appDb.Database.EnsureCreated();
                 }
             });
         }
+
     }
 }

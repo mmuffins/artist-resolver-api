@@ -8,6 +8,7 @@ namespace ArtistNormalizer.API.Persistence.Contexts
         public DbSet<Artist> Artists { get; set; }
         public DbSet<Alias> Aliases { get; set; }
         public DbSet<Franchise> Franchises { get; set; }
+        public DbSet<MbArtist> MbArtists { get; set; }
 
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
@@ -21,6 +22,15 @@ namespace ArtistNormalizer.API.Persistence.Contexts
                 e.HasIndex(p => p.Name).IsUnique();
                 e.Property(x => x.Name).HasColumnType("TEXT COLLATE NOCASE");
                 e.HasMany(p => p.Aliases).WithOne(p => p.Artist).HasForeignKey(p => p.ArtistId);
+            });
+
+            builder.Entity<MbArtist>(e =>
+            {
+                e.ToTable("MbArtists");
+                e.HasKey(p => p.Id);
+                e.HasIndex(p => p.MbId).IsUnique();
+                e.HasIndex(p => p.Name).IsUnique();
+                e.Property(x => x.Name).HasColumnType("TEXT COLLATE NOCASE");
             });
 
             builder.Entity<Franchise>(e =>

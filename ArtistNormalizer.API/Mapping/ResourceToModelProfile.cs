@@ -11,6 +11,8 @@ namespace ArtistNormalizer.API.Mapping
             CreateMap<SaveFranchiseResource, Franchise>();
 
             CreateMap<SaveArtistResource, Artist>();
+            
+            CreateMap<SaveMbArtistResource, MbArtist>();
 
             CreateMap<SaveAliasResource, Alias>()
                 .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.Name));
