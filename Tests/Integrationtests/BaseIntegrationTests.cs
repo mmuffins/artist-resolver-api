@@ -34,8 +34,8 @@ namespace Tests.Integrationtests
 
         public async Task InitializeAsync()
         {
-            dbContext.Database.EnsureDeleted();
-            dbContext.Database.EnsureCreated();
+            await dbContext.Database.EnsureDeletedAsync();
+            await dbContext.Database.EnsureCreatedAsync();
         }
 
         public Task DisposeAsync()
