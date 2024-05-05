@@ -49,7 +49,23 @@ namespace Tests.Integrationtests
         [Fact]
         public async Task Artist_Post_Duplicate()
         {
-            throw new NotImplementedException();
+            await SeedData(5, 2, 1, 1);
+
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // Generate test data
+            var jsonString = new StringContent(JsonSerializer.Serialize(new { Name = "Duplicate Artist Name" }), Encoding.UTF8, "application/json");
+
+            // First POST should be successful
+            var postResponse = await client.PostAsync(artistEndpoint, jsonString);
+            postResponse.EnsureSuccessStatusCode();
+
+            // Verify
+            // Attempt to post the same artist again
+            var secondPostResponse = await client.PostAsync(artistEndpoint, jsonString);
+
+            // Expect a BadRequest due to duplicate entry
+            Assert.Equal(System.Net.HttpStatusCode.BadRequest, secondPostResponse.StatusCode);
         }
 
         [Fact]
@@ -210,7 +226,44 @@ namespace Tests.Integrationtests
         [Fact]
         public async Task Artist_Update()
         {
-            throw new NotImplementedException();
+            // Add test data
+            int seedCount = 3;
+            await SeedData(seedCount, 1, 1, 1);
+
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // get all elements
+            HttpResponseMessage allArtistsResponse = await client.GetAsync(artistEndpoint);
+            allArtistsResponse.EnsureSuccessStatusCode();
+            var allArtists = JsonSerializer.Deserialize<IEnumerable<ArtistResource>>(await allArtistsResponse.Content.ReadAsStringAsync(), JsonOptions)
+                .ToList();
+            Assert.Equal(seedCount, allArtists.Count());
+
+            // Update the posted artist
+            var updatedArtist = new SaveArtistResource
+            {
+                Name = "Updated Name"
+            };
+
+            var updateJsonString = new StringContent(JsonSerializer.Serialize(updatedArtist), Encoding.UTF8, "application/json");
+
+            var updateResponse = await client.PutAsync($"{artistEndpoint}/id/{allArtists[1].Id}", updateJsonString);
+            updateResponse.EnsureSuccessStatusCode();
+
+            // Verify
+            var httpResponse = await client.GetAsync(artistEndpoint);
+            httpResponse.EnsureSuccessStatusCode();
+
+            // Deserialize and examine results.
+            var verifyList = JsonSerializer.Deserialize<IEnumerable<ArtistResource>>(await httpResponse.Content.ReadAsStringAsync(), JsonOptions);
+            var unchanged0 = verifyList.Where(x => x.Id.Equals(allArtists[0].Id)).First();
+            Assert.Equal(allArtists[0].Name, unchanged0.Name);
+
+            var unchanged1 = verifyList.Where(x => x.Id.Equals(allArtists[2].Id)).First();
+            Assert.Equal(allArtists[2].Name, unchanged1.Name);
+
+            var updated0 = verifyList.Where(x => x.Id.Equals(allArtists[1].Id)).First();
+            Assert.Equal(updatedArtist.Name, updated0.Name);
         }
     }
 }

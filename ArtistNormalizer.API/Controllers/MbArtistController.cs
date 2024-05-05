@@ -103,6 +103,7 @@ namespace ArtistNormalizer.API.Controllers
             var updatedResource = mapper.Map<MbArtist, MbArtistResource>(result.Artist);
             return Ok(updatedResource);
         }
+
         [HttpDelete("id/{id}")]
         public async Task<IActionResult> DeleteAsync(int id)
         {

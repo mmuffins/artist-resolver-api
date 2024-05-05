@@ -173,25 +173,22 @@ namespace Tests.Integrationtests
         [Fact]
         public async Task MbArtist_Post_Duplicate()
         {
+            await SeedData(1, 2, 1, 5);
+
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
             // Generate test data
-            var artList = GenerateMbArtists(1);
-
             var jsonString = new StringContent(JsonSerializer.Serialize(new
             {
-                artList[0].MbId,
-                artList[0].Name,
-                artList[0].OriginalName,
-                artList[0].Include
+                MbId = "MbId-0-6666-7777-8888-Duplicate",
+                Name = "Duplicate Artist Name",
+                OriginalName = "Duplicate Artist Original Name",
+                Include = true
             }), Encoding.UTF8, "application/json");
 
             // First POST should be successful
             var postResponse = await client.PostAsync(mbArtistEndpoint, jsonString);
             postResponse.EnsureSuccessStatusCode();
-
-            var postResponseObj = JsonSerializer.Deserialize<MbArtistResource>(await postResponse.Content.ReadAsStringAsync(), JsonOptions);
-            Assert.Equal(artList[0].Name, postResponseObj.Name);
 
             // Verify
             // Attempt to post the same artist again

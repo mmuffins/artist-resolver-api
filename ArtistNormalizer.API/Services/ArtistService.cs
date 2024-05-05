@@ -2,6 +2,7 @@
 using ArtistNormalizer.API.Domain.Repositories;
 using ArtistNormalizer.API.Domain.Services;
 using ArtistNormalizer.API.Domain.Services.Communication;
+using ArtistNormalizer.API.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Concurrent;
@@ -63,5 +64,21 @@ namespace ArtistNormalizer.API.Services
                 return new ArtistResponse($"An error occurred when deleting artist: {ex.Message}");
             }
         }
+        public async Task<ArtistResponse> UpdateAsync(Artist artist)
+        {
+            try
+            {
+                artistRepository.Update(artist);
+                await unitOfWork.CompleteAsync();
+
+                return new ArtistResponse(artist);
+            }
+            catch (Exception ex)
+            {
+                return new ArtistResponse($"An error occurred when updating the artist: {ex.Message}");
+            }
+        }
+
+
     }
 }

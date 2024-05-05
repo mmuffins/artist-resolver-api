@@ -40,5 +40,10 @@ namespace ArtistNormalizer.API.Persistence.Repositories
         {
             context.Artists.Remove(artist);
         }
+        
+        public void Update(Artist artist)
+        {
+            context.Artists.Update(artist);
+        }
     }
 }

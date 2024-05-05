@@ -3,6 +3,7 @@ using ArtistNormalizer.API.Domain.Services;
 using ArtistNormalizer.API.Domain.Services.Communication;
 using ArtistNormalizer.API.Extensions;
 using ArtistNormalizer.API.Resources;
+using ArtistNormalizer.API.Services;
 using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -62,9 +63,9 @@ namespace ArtistNormalizer.API.Controllers
             Artist resolvedArtist = (await artistService.ListAsync(null, resource.Name)).FirstOrDefault();
             if (resolvedArtist != null)
             {
-                var existingAlias = mapper.Map<Artist, ArtistResource>(resolvedArtist);
-                return Ok(existingAlias);
+                return BadRequest("Artist with the specified name already exists.");
             }
+
 
             Artist artist = mapper.Map<SaveArtistResource, Artist>(resource);
             ArtistResponse result = await artistService.SaveAsync(artist);
@@ -75,6 +76,29 @@ namespace ArtistNormalizer.API.Controllers
             var artistResource = mapper.Map<Artist, ArtistResource>(result.Artist);
             return Ok(artistResource);
         }
+
+        [HttpPut("id/{id}")]
+        public async Task<IActionResult> UpdateAsync(int id, [FromBody] SaveArtistResource resource)
+        {
+            logger.LogInformation($"PUT /artist/id/{id}");
+
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState.GetErrorMessages());
+
+            var existingArtist = (await artistService.ListAsync(id, null)).FirstOrDefault();
+            if (existingArtist == null)
+                return NotFound();
+
+            mapper.Map(resource, existingArtist);
+            ArtistResponse result = await artistService.UpdateAsync(existingArtist);
+
+            if (!result.Success)
+                return BadRequest(result.Message);
+
+            var updatedResource = mapper.Map<Artist, ArtistResource>(result.Artist);
+            return Ok(updatedResource);
+        }
+
 
         [HttpDelete("id/{id}")]
         public async Task<IActionResult> DeleteAsync(int id)
