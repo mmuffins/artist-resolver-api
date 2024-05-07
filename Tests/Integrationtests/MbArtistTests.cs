@@ -18,7 +18,7 @@ namespace Tests.Integrationtests
         public MbArtistTests(CustomWebApplicationFactory<Startup> factory) : base(factory) { }
 
         [Fact]
-        public async Task MbArtist_FindById()
+        public async Task FindById()
         {
             // Add test data
             await SeedData(0, 0, 0, 5);
@@ -50,7 +50,7 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
-        public async Task MbArtist_FindByMbId()
+        public async Task FindByMbId()
         {
             // Add test data
             await SeedData(1, 1, 1, 5);
@@ -77,7 +77,7 @@ namespace Tests.Integrationtests
 
 
         [Fact]
-        public async Task MbArtist_List()
+        public async Task List()
         {
             // Add test data
             await SeedData(0, 0, 0, 5);
@@ -96,7 +96,7 @@ namespace Tests.Integrationtests
 
 
         [Fact]
-        public async Task MbArtist_Post()
+        public async Task Post()
         {
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
@@ -132,7 +132,7 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
-        public async Task MbArtist_Delete()
+        public async Task Delete()
         {
             // Add test data
             int seedCount = 3;
@@ -171,7 +171,7 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
-        public async Task MbArtist_Post_Duplicate()
+        public async Task Post_Duplicate_Ensure_Error()
         {
             await SeedData(1, 2, 1, 5);
 
@@ -199,7 +199,7 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
-        public async Task MbArtist_Update()
+        public async Task Update()
         {
             // Add test data
             int seedCount = 3;
