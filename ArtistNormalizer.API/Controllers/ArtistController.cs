@@ -63,7 +63,7 @@ namespace ArtistNormalizer.API.Controllers
             Artist resolvedArtist = (await artistService.ListAsync(null, resource.Name)).FirstOrDefault();
             if (resolvedArtist != null)
             {
-                return BadRequest("Artist with the specified name already exists.");
+                return Conflict("Artist with the specified name already exists.");
             }
 
 

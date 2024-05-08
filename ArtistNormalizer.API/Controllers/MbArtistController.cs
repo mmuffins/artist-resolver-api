@@ -68,7 +68,7 @@ namespace ArtistNormalizer.API.Controllers
             MbArtist resolvedArtist = (await mbArtistService.ListAsync(null, resource.MbId)).FirstOrDefault();
             if (resolvedArtist != null)
             {
-                return BadRequest("Artist with the specified MBID already exists.");
+                return Conflict("Artist with the specified MBID already exists.");
             }
 
             MbArtist artist = mapper.Map<SaveMbArtistResource, MbArtist>(resource);
