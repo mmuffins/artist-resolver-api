@@ -2,7 +2,6 @@ import json
 import httpx
 import os
 import asyncio
-import tkinter as tk
 from typing import List, Optional
 from mutagen import id3
 # TODO: datetime is just for debuggin purposes, remove it
@@ -266,6 +265,7 @@ if __name__ == "__main__":
 
 # from tkinter import filedialog, ttk
 # from tkinter import messagebox
+# import tkinter as tk
 
 # class MusicMetadataEditor:
 # 	def __init__(self, root):
