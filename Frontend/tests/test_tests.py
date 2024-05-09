@@ -2,7 +2,7 @@ import pytest
 import httpx
 from unittest.mock import AsyncMock
 
-from MediaDataManager.main import MediaDataManager, MbArtistDetais
+from TrackManager import MediaDataManager, MbArtistDetais
 
 @pytest.fixture
 def manager():

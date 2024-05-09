@@ -126,7 +126,7 @@ class TrackDetails:
 		if file_changed:
 			self.id3.save(self.file_path)
 
-class MediaDataManager:
+class TrackManager:
 	MBARTIST_API_ENDPOINT = "api/mbartist"
 	MBARTIST_API_PORT = 23409
 	MBARTIST_API_DOMAIN = "localhost"
@@ -190,7 +190,7 @@ class MediaDataManager:
 				await self.update_mbartist_customization(customization['id'], artist)
 
 	async def post_mbartist_customization(self, artist:MbArtistDetais) -> None:
-		endpoint = f"http://{MediaDataManager.MBARTIST_API_DOMAIN}:{MediaDataManager.MBARTIST_API_PORT}/{MediaDataManager.MBARTIST_API_ENDPOINT}"
+		endpoint = f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.MBARTIST_API_ENDPOINT}"
 
 		data = {
 			"MbId": artist.mbid,
@@ -213,7 +213,7 @@ class MediaDataManager:
 					raise Exception(f"Failed to post artist data for MBID {artist.mbid}: {response.text} ({response.status_code} {response.reason_phrase})")
 	
 	async def update_mbartist_customization(self, id:int, artist:MbArtistDetais) -> None:
-		endpoint = f"http://{MediaDataManager.MBARTIST_API_DOMAIN}:{MediaDataManager.MBARTIST_API_PORT}/{MediaDataManager.MBARTIST_API_ENDPOINT}/id"
+		endpoint = f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.MBARTIST_API_ENDPOINT}/id"
 
 		data = {
 			"MbId": artist.mbid,
@@ -252,7 +252,7 @@ async def send_post_request(data) -> None:
 
 async def main() -> None:
 	await seedData()
-	manager = MediaDataManager()
+	manager = TrackManager()
 	dir = "C:/Users/email_000/Desktop/music/sample/spiceandwolf"
 	await manager.load_directory(dir)
 	await manager.persist_mbartist_customizations()
@@ -260,100 +260,3 @@ async def main() -> None:
 
 if __name__ == "__main__":
 	asyncio.run(main())
-
-
-
-# from tkinter import filedialog, ttk
-# from tkinter import messagebox
-# import tkinter as tk
-
-# class MusicMetadataEditor:
-# 	def __init__(self, root):
-# 		self.root = root
-# 		self.root.title("Music Metadata Editor")
-
-# 		# Layout configuration
-# 		self.setup_widgets()
-# 		self.setup_table()
-
-# 		# For storing the music files list
-# 		self.tracks = []
-
-# 	def setup_widgets(self):
-# 		# Frame for the directory selection
-# 		self.frame = ttk.Frame(self.root)
-# 		self.frame.pack(padx=10, pady=10)
-
-# 		# Button to choose directory
-# 		self.btn_select_dir = ttk.Button(self.frame, text="Select Folder", command=self.select_directory)
-# 		self.btn_select_dir.pack(side=tk.LEFT)
-
-# 		# Listbox to display files
-# 		self.file_listbox = tk.Listbox(self.root, width=100, height=5)
-# 		self.file_listbox.pack(padx=10, pady=10)
-
-# 		# Scrollbar for the listbox
-# 		self.scrollbar = ttk.Scrollbar(self.root, orient='vertical', command=self.file_listbox.yview)
-# 		self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-# 		self.file_listbox.config(yscrollcommand=self.scrollbar.set)
-
-# 	def select_directory(self):
-# 		# Allow user to select a directory and store file paths
-# 		directory = filedialog.askdirectory()
-# 		if directory:
-# 			self.load_music_files(directory)
-
-# 	def setup_table(self):
-# 		# Setting up the Treeview widget for displaying metadata
-# 		self.tree = ttk.Treeview(self.root, columns=("Title", "Artist", "Album", "ID", "Type"), show='headings')
-# 		self.tree.pack(expand=True, fill=tk.BOTH, padx=10, pady=10)
-
-# 		# Defining the columns
-# 		self.tree.heading("Title", text="Track Title")
-# 		self.tree.heading("Artist", text="Artist")
-# 		self.tree.heading("Album", text="Album")
-# 		self.tree.heading("ID", text="Artist ID")
-# 		self.tree.heading("Type", text="Artist Type")
-
-# 		# Column widths
-# 		self.tree.column("Title", width=200)
-# 		self.tree.column("Artist", width=150)
-# 		self.tree.column("Album", width=150)
-# 		self.tree.column("ID", width=100)
-# 		self.tree.column("Type", width=100)
-
-# 		# Button to update metadata
-# 		self.update_button = ttk.Button(self.root, text="Update Metadata", command=self.update_metadata)
-# 		self.update_button.pack(pady=10)
-
-# 	def update_metadata(self):
-# 		# This method will handle the update interaction with the API
-# 		for child in self.tree.get_children():
-# 			item = self.tree.item(child)
-# 			artist_data = json.loads(item['values'][3])
-# 			for artist in artist_data:
-# 				response = httpx.post(f"http://localhost:8080/api/mbartist?mbId={artist['id']}")
-# 				if response.status_code == 200:
-# 					print("Update successful for", artist['id'])
-# 				else:
-# 					print("Failed to update for", artist['id'])
-
-# 	def load_music_files(self, directory):
-# 		# Clear the listbox
-# 		self.file_listbox.delete(0, tk.END)
-# 		self.tracks = []  
-# 		self.tree.delete(*self.tree.get_children())  # Clear existing tree view entries
-
-# 		# Walk through the directory
-# 		for root, dirs, files in os.walk(directory):
-# 			for file in files:
-# 				if file.endswith(".mp3"):
-# 					file_path = os.path.join(root, file)
-# 					trackdetails = TrackDetails(file_path)
-# 					self.tracks.append(trackdetails)
-# 					self.file_listbox.insert(tk.END, trackdetails.file_path)
-# 					trackdetails.read_metadata()
-
-# 		# Load and display metadata for each file
-# 		for file_path in self.tracks:
-# 			print('a')
