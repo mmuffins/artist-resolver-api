@@ -297,6 +297,22 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
+        public async Task FindById_error_if_not_found()
+        {
+            // Add test data to ensure db is not empty
+            await SeedData(2, 3, 1, 1);
+
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // Verify
+            var invalidId = "999999";
+            HttpResponseMessage verifyResponse = await client.GetAsync($"{aliasEndpoint}/id/{invalidId}");
+
+            // Expect a BadRequest due to duplicate entry
+            Assert.Equal(System.Net.HttpStatusCode.NotFound, verifyResponse.StatusCode);
+        }
+
+        [Fact]
         public async Task Cleanup_After_Parent_Artist_Removed()
         {
             // Add test data

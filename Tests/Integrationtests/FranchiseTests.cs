@@ -134,13 +134,6 @@ namespace Tests.Integrationtests
             // Add test data
             await SeedData(1, 2, 5, 1);
 
-            // Verify that an invalid id returns nothing
-            HttpResponseMessage verifyNotFoundResponse = await client.GetAsync($"{franchiseEndpoint}/id/999999");
-            verifyNotFoundResponse.EnsureSuccessStatusCode();
-
-            var verifyNotFoundString = await verifyNotFoundResponse.Content.ReadAsStringAsync();
-            Assert.Empty(verifyNotFoundString);
-
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
             // get Id of all elements
@@ -160,6 +153,21 @@ namespace Tests.Integrationtests
             }
         }
 
+        [Fact]
+        public async Task FindById_error_if_not_found()
+        {
+            // Add test data to ensure db is not empty
+            await SeedData(1, 2, 5, 1);
+
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // Verify
+            var invalidId = "999999";
+            HttpResponseMessage verifyResponse = await client.GetAsync($"{franchiseEndpoint}/id/{invalidId}");
+
+            // Expect a BadRequest due to duplicate entry
+            Assert.Equal(System.Net.HttpStatusCode.NotFound, verifyResponse.StatusCode);
+        }
 
 
         [Fact]

@@ -31,13 +31,18 @@ namespace ArtistNormalizer.API.Controllers
         }
 
         [HttpGet("id/{id}")]
-        public async Task<AliasResource> FindByIdAsync(int id)
+        public async Task<IActionResult> FindByIdAsync(int id)
         {
             logger.LogInformation("GET /alias/id/" + id);
 
-            Alias alias = (await aliasService.ListAsync(id, null, null)).FirstOrDefault();
+            var alias = (await aliasService.ListAsync(id, null, null)).FirstOrDefault();
+            if (alias == null)
+            {
+                return NotFound();
+            }
+
             var resource = mapper.Map<Alias, AliasResource>(alias);
-            return resource;
+            return Ok(resource);
         }
 
         [HttpGet]

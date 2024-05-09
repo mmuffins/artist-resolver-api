@@ -28,12 +28,17 @@ namespace ArtistNormalizer.API.Controllers
         }
 
         [HttpGet("id/{id}")]
-        public async Task<ArtistResource> FindByIdAsync(int id)
+        public async Task<IActionResult> FindByIdAsync(int id)
         {
             logger.LogInformation("GET /artist/id/" + id);
             var artist = (await artistService.ListAsync(id, null)).FirstOrDefault();
-            var resources = mapper.Map<Artist, ArtistResource>(artist);
-            return resources;
+            if (artist == null)
+            {
+                return NotFound();
+            }
+
+            var resource = mapper.Map<Artist, ArtistResource>(artist);
+            return Ok(resource);
         }
 
         [HttpGet]
