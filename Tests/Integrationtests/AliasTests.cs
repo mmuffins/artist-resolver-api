@@ -18,7 +18,7 @@ namespace Tests.Integrationtests
         public AliasTests(CustomWebApplicationFactory<Startup> factory) : base(factory) { }
 
         [Fact]
-        public async Task Alias_Post()
+        public async Task Post()
         {
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
@@ -58,7 +58,7 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
-        public async Task Alias_Post_Duplicate_Name_Different_Franchise()
+        public async Task Post_Duplicate_Name_Different_Franchise()
         {
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
@@ -97,7 +97,7 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
-        public async Task Alias_Post_Duplicate_Name_Same_Franchise()
+        public async Task Post_Duplicate_Name_Same_Franchise()
         {
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
@@ -136,7 +136,7 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
-        public async Task Alias_Delete()
+        public async Task Delete()
         {
             // Add test data
             await SeedData(1, 3, 1, 1);
@@ -177,7 +177,7 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
-        public async Task Alias_List()
+        public async Task List()
         {
             // Add test data
             await SeedData(2, 3, 2, 1);
@@ -195,7 +195,7 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
-        public async Task Alias_FindByAliasName()
+        public async Task FindByAliasName()
         {
             // Add test data
             await SeedData(2, 3, 1, 1);
@@ -221,7 +221,7 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
-        public async Task Alias_FindByFranchiseName()
+        public async Task FindByFranchiseName()
         {
             // Add test data
             await SeedData(2, 3, 1, 1);
@@ -246,7 +246,7 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
-        public async Task Alias_FindByAliasName_And_FranchiseName()
+        public async Task FindByAliasName_And_FranchiseName()
         {
             // Add test data
             await SeedData(1, 3, 3, 1);
@@ -272,7 +272,7 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
-        public async Task Alias_FindById()
+        public async Task FindById()
         {
             // Add test data
             await SeedData(2, 3, 1, 1);
@@ -297,7 +297,7 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
-        public async Task Alias_Cleanup_After_Parent_Artist_Removed()
+        public async Task Cleanup_After_Parent_Artist_Removed()
         {
             // Add test data
             await SeedData(1, 2, 1, 1);
@@ -337,7 +337,7 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
-        public async Task Alias_Cleanup_After_Parent_Franchise_Removed()
+        public async Task Cleanup_After_Parent_Franchise_Removed()
         {
             // Add test data
             await SeedData(1, 2, 1, 1);

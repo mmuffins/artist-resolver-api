@@ -17,7 +17,7 @@ namespace Tests.Integrationtests
         public FranchiseTests(CustomWebApplicationFactory<Startup> factory) : base(factory) { }
 
         [Fact]
-        public async Task Franchise_Post()
+        public async Task Post()
         {
             // Add test data
             var fList = GenerateFranchise(3);
@@ -46,7 +46,7 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
-        public async Task Franchise_Delete()
+        public async Task Delete()
         {
             // Add test data
             int seedCount = 3;
@@ -85,7 +85,7 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
-        public async Task Franchise_List()
+        public async Task List()
         {
             // Add test data
             await SeedData(2, 3, 4, 1);
@@ -103,7 +103,7 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
-        public async Task Franchise_FindByName()
+        public async Task FindByName()
         {
             // Add test data
             await SeedData(2, 2, 5, 1);
@@ -129,7 +129,7 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
-        public async Task Franchise_FindById()
+        public async Task FindById()
         {
             // Add test data
             await SeedData(1, 2, 5, 1);
@@ -163,7 +163,7 @@ namespace Tests.Integrationtests
 
 
         [Fact]
-        public async Task Franchise_Cleanup_After_Last_Alias_Removed()
+        public async Task Cleanup_After_Last_Alias_Removed()
         {
             await SeedData(1, 2, 1, 1);
 

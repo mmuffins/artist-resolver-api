@@ -18,7 +18,7 @@ namespace Tests.Integrationtests
         public ArtistTests(CustomWebApplicationFactory<Startup> factory) : base(factory) { }
 
         [Fact]
-        public async Task Artist_Post()
+        public async Task Post()
         {
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
@@ -47,7 +47,7 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
-        public async Task Artist_Post_Duplicate()
+        public async Task Post_Duplicate()
         {
             await SeedData(5, 2, 1, 1);
 
@@ -69,7 +69,7 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
-        public async Task Artist_Delete()
+        public async Task Delete()
         {
             // Add test data
             int seedCount = 3;
@@ -108,7 +108,7 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
-        public async Task Artist_List()
+        public async Task List()
         {
             // Add test data
             await SeedData(3, 2, 2, 1);
@@ -126,7 +126,7 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
-        public async Task Artist_FindById()
+        public async Task FindById()
         {
             // Add test data
             await SeedData(5, 2, 1, 1);
@@ -158,7 +158,7 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
-        public async Task Artist_FindByName()
+        public async Task FindByName()
         {
             // Add test data
             await SeedData(2, 2, 5, 1);
@@ -184,7 +184,7 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
-        public async Task Artist_Cleanup_After_Last_Alias_Removed()
+        public async Task Cleanup_After_Last_Alias_Removed()
         {
             // Add test data
             await SeedData(1, 2, 1, 1);
@@ -224,7 +224,7 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
-        public async Task Artist_Update()
+        public async Task Update()
         {
             // Add test data
             int seedCount = 3;
