@@ -30,25 +30,38 @@ namespace ArtistNormalizer.API.Controllers
         }
 
         [HttpGet("id/{id}")]
-        public async Task<MbArtistResource> FindByIdAsync(int id)
+        public async Task<IActionResult> FindByIdAsync(int id)
         {
             logger.LogInformation("GET /mbartist/id/" + id);
             var artist = (await mbArtistService.ListAsync(id, null)).FirstOrDefault();
-            var resources = mapper.Map<MbArtist, MbArtistResource>(artist);
-            return resources;
+            if (artist == null)
+            {
+                return NotFound();
+            }
+            var resource = mapper.Map<MbArtist, MbArtistResource>(artist);
+            return Ok(resource);
+        }
+
+        [HttpGet("mbid/{mbId}")]
+        public async Task<IActionResult> FindByMbIdAsync(string mbId)
+        {
+            logger.LogInformation("GET /mbartist/mbid/" + mbId);
+            var artist = (await mbArtistService.ListAsync(null, mbId)).FirstOrDefault();
+            if (artist == null)
+            {
+                return NotFound();
+            }
+            var resource = mapper.Map<MbArtist, MbArtistResource>(artist);
+            return Ok(resource);
         }
 
         [HttpGet]
-        public async Task<IEnumerable<MbArtistResource>> FindAsync(int? id, string mbId)
+        public async Task<IEnumerable<MbArtistResource>> FindAsync()
         {
-            logger.LogInformation($"GET /mbartist - id:{id}, mbId:{mbId}");
+            logger.LogInformation($"GET /mbartist/");
 
-            if (mbId is not null)
-            {
-                mbId = mbId.Trim();
-            }
 
-            IEnumerable<MbArtist> artist = await mbArtistService.ListAsync(id, mbId);
+            IEnumerable<MbArtist> artist = await mbArtistService.ListAsync(null, null);
             var resource = mapper.Map<IEnumerable<MbArtist>, IEnumerable<MbArtistResource>>(artist);
             return resource;
         }

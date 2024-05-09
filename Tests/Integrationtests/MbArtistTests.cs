@@ -21,32 +21,42 @@ namespace Tests.Integrationtests
         public async Task FindById()
         {
             // Add test data
-            await SeedData(0, 0, 0, 5);
-
-            // Verify that an invalid id returns nothing
-            HttpResponseMessage verifyNotFoundResponse = await client.GetAsync($"{mbArtistEndpoint}/id/999999");
-            verifyNotFoundResponse.EnsureSuccessStatusCode();
-
-            var verifyNotFoundString = await verifyNotFoundResponse.Content.ReadAsStringAsync();
-            Assert.Empty(verifyNotFoundString);
+            await SeedData(1, 1, 1, 5);
 
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
             // get Id of all elements
-            HttpResponseMessage allArtistsResponse = await client.GetAsync(mbArtistEndpoint);
-            allArtistsResponse.EnsureSuccessStatusCode();
-            var allArtistsList = JsonSerializer.Deserialize<IEnumerable<MbArtistResource>>(await allArtistsResponse.Content.ReadAsStringAsync(), JsonOptions)
+            HttpResponseMessage allElementsResponse = await client.GetAsync(mbArtistEndpoint);
+            allElementsResponse.EnsureSuccessStatusCode();
+            var allElements = JsonSerializer.Deserialize<IEnumerable<MbArtistResource>>(await allElementsResponse.Content.ReadAsStringAsync(), JsonOptions)
                 .ToList();
 
-            // verify that findById returns correct results
-            for (int i = 0; i < allArtistsList.Count; i++)
+            // verify that the correct results are returned
+            foreach (var targetElement in allElements)
             {
-                HttpResponseMessage verifyResponse = await client.GetAsync($"{mbArtistEndpoint}/id/{allArtistsList[i].Id}");
+                HttpResponseMessage verifyResponse = await client.GetAsync($"{mbArtistEndpoint}/id/{targetElement.Id}");
                 verifyResponse.EnsureSuccessStatusCode();
 
-                var verifyArt = JsonSerializer.Deserialize<MbArtistResource>(await verifyResponse.Content.ReadAsStringAsync(), JsonOptions);
-                Assert.Equal(allArtistsList[i].Name, verifyArt.Name);
+                var verifyElement = JsonSerializer.Deserialize<MbArtistResource>(await verifyResponse.Content.ReadAsStringAsync(), JsonOptions);
+                Assert.Equal(targetElement.Id, verifyElement.Id);
+                Assert.Equal(targetElement.Name, verifyElement.Name);
             }
+        }
+
+        [Fact]
+        public async Task FindById_error_if_not_found()
+        {
+            // Add test data to ensure db is not empty
+            await SeedData(1, 1, 1, 5);
+
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // Verify
+            var invalidId = "999999";
+            HttpResponseMessage verifyResponse = await client.GetAsync($"{mbArtistEndpoint}/id/{invalidId}");
+
+            // Expect a BadRequest due to duplicate entry
+            Assert.Equal(System.Net.HttpStatusCode.NotFound, verifyResponse.StatusCode);
         }
 
         [Fact]
@@ -66,13 +76,29 @@ namespace Tests.Integrationtests
             // verify that the correct results are returned
             foreach (var targetElement in allElements)
             {
-                HttpResponseMessage verifyResponse = await client.GetAsync($"{mbArtistEndpoint}?mbId={targetElement.MbId}");
+                HttpResponseMessage verifyResponse = await client.GetAsync($"{mbArtistEndpoint}/mbid/{targetElement.MbId}");
                 verifyResponse.EnsureSuccessStatusCode();
 
-                var verifyElement = JsonSerializer.Deserialize<IEnumerable<MbArtistResource>>(await verifyResponse.Content.ReadAsStringAsync(), JsonOptions);
-                Assert.Single(verifyElement);
-                Assert.Equal(targetElement.Id, verifyElement.First().Id);
+                var verifyElement = JsonSerializer.Deserialize<MbArtistResource>(await verifyResponse.Content.ReadAsStringAsync(), JsonOptions);
+                Assert.Equal(targetElement.Id, verifyElement.Id);
+                Assert.Equal(targetElement.Name, verifyElement.Name);
             }
+        }
+
+        [Fact]
+        public async Task FindByMbId_error_if_not_found()
+        {
+            // Add test data to ensure db is not empty
+            await SeedData(1, 1, 1, 5);
+
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // Verify
+            var invalidId = "MbId-0-6666-7777-8888-NotFound";
+            HttpResponseMessage verifyResponse = await client.GetAsync($"{mbArtistEndpoint}/mbid/{invalidId}");
+
+            // Expect a BadRequest due to duplicate entry
+            Assert.Equal(System.Net.HttpStatusCode.NotFound, verifyResponse.StatusCode);
         }
 
 
@@ -195,7 +221,7 @@ namespace Tests.Integrationtests
             var secondPostResponse = await client.PostAsync(mbArtistEndpoint, jsonString);
 
             // Expect a BadRequest due to duplicate entry
-            Assert.Equal(System.Net.HttpStatusCode.BadRequest, secondPostResponse.StatusCode);
+            Assert.Equal(System.Net.HttpStatusCode.Conflict, secondPostResponse.StatusCode);
         }
 
         [Fact]
