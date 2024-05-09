@@ -245,7 +245,8 @@ namespace Tests.Integrationtests
             {
                 MbId = allArtists[1].MbId,
                 Name = "Updated Name",
-                OriginalName = "Updated Original Name"
+                OriginalName = "Updated Original Name",
+                Include = false
             };
 
             var updateJsonString = new StringContent(JsonSerializer.Serialize(updatedArtist), Encoding.UTF8, "application/json");
@@ -263,16 +264,19 @@ namespace Tests.Integrationtests
             Assert.Equal(allArtists[0].MbId, unchanged0.MbId);
             Assert.Equal(allArtists[0].Name, unchanged0.Name);
             Assert.Equal(allArtists[0].OriginalName, unchanged0.OriginalName);
+            Assert.Equal(allArtists[0].Include, unchanged0.Include);
 
             var unchanged1 = verifyList.Where(x => x.Id.Equals(allArtists[2].Id)).First();
             Assert.Equal(allArtists[2].MbId, unchanged1.MbId);
             Assert.Equal(allArtists[2].Name, unchanged1.Name);
             Assert.Equal(allArtists[2].OriginalName, unchanged1.OriginalName);
+            Assert.Equal(allArtists[2].Include, unchanged1.Include);
 
             var updated0 = verifyList.Where(x => x.Id.Equals(allArtists[1].Id)).First();
             Assert.Equal(updatedArtist.MbId, updated0.MbId);
             Assert.Equal(updatedArtist.Name, updated0.Name);
             Assert.Equal(updatedArtist.OriginalName, updated0.OriginalName);
+            Assert.Equal(updatedArtist.Include, updated0.Include);
         }
     }
 }
