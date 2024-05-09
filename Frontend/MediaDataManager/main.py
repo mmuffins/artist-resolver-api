@@ -41,7 +41,7 @@ class Alias:
 
 class MbArtistDetais:
 	def __init__(self, name: str, type: str, disambiguation: str, sort_name: str, id: str, aliases: List[Alias], type_id: str, joinphrase: Optional[str]):
-		self.include = True
+		self.include: bool = True
 		self.name = name
 		self.type = type
 		self.disambiguation = disambiguation
@@ -105,7 +105,7 @@ class TrackDetails:
 	def __repr__(self):
 		return	f"{self.title}"
 		
-	async def read_metadata(self) -> None:
+	async def read_file_metadata(self) -> None:
 		loop = asyncio.get_event_loop()
 		self.id3 = await loop.run_in_executor(None, lambda: ID3(self.file_path))
 		self.title = self.id3.get('TIT2',[''])[0]
@@ -116,6 +116,10 @@ class TrackDetails:
 		self.mbArtistDetails = await self.manager.parse_mbartist_json(artist_relations)
 
 class MediaDataManager:
+	MBARTIST_API_ENDPOINT = "api/mbartist"
+	MBARTIST_API_PORT = 23409
+	MBARTIST_API_DOMAIN = "localhost"
+
 	def __init__(self):
 		self.tracks: list[TrackDetails] = []
 		self.mb_artist_data: dict[MbArtistDetais] = {}
@@ -123,7 +127,7 @@ class MediaDataManager:
 	async def load_directory(self, directory: str) -> None:
 		self.directory = directory
 		self.load_files()
-		await self.read_metadata()
+		await self.read_file_metadata()
 
 	def load_files(self) -> None:
 		for root, dirs, files in os.walk(self.directory):
@@ -132,8 +136,8 @@ class MediaDataManager:
 					file_path = os.path.join(root, file)
 					self.tracks.append(TrackDetails(file_path, self))
 	
-	async def read_metadata(self) -> None:
-		await asyncio.gather(*(track.read_metadata() for track in self.tracks))
+	async def read_file_metadata(self) -> None:
+		await asyncio.gather(*(track.read_file_metadata() for track in self.tracks))
 
 	async def parse_mbartist_json(self, artist_relations_json: str) -> list[MbArtistDetais]:
 		artist_details = MbArtistDetais.parse_json(artist_relations_json)
@@ -162,6 +166,59 @@ class MediaDataManager:
 				case _:
 					raise Exception(f"Failed to fetch artist data for MBID {mbid}: {response.status_code}")
 
+	async def persist_mbartist_customizations(self) -> None:
+		for artist in self.mb_artist_data.values():
+			customization = await self.get_mbartist_customization(artist.mbid)
+			if (None == customization):
+				await self.post_mbartist_customization(artist)
+			else:
+				await self.update_mbartist_customization(customization['id'], artist)
+
+	async def post_mbartist_customization(self, artist:MbArtistDetais) -> None:
+		endpoint = f"http://{MediaDataManager.MBARTIST_API_DOMAIN}:{MediaDataManager.MBARTIST_API_PORT}/{MediaDataManager.MBARTIST_API_ENDPOINT}"
+
+		data = {
+			"MbId": artist.mbid,
+			"Name": artist.custom_name,
+			"OriginalName": artist.custom_original_name,
+			"Include": artist.include
+		}
+
+		async with httpx.AsyncClient() as client:
+			response = await client.post(f"{endpoint}", json=data)
+
+			if response.is_success:
+				return
+			
+			match response.status_code:
+				case 409:
+					# TODO: Add some nicer error handler when trying to post duplicates
+					raise Exception(f"Failed to post artist data for MBID {artist.mbid}: {response.text} ({response.status_code} {response.reason_phrase})")
+				case _:
+					raise Exception(f"Failed to post artist data for MBID {artist.mbid}: {response.text} ({response.status_code} {response.reason_phrase})")
+	
+	async def update_mbartist_customization(self, id:int, artist:MbArtistDetais) -> None:
+		endpoint = f"http://{MediaDataManager.MBARTIST_API_DOMAIN}:{MediaDataManager.MBARTIST_API_PORT}/{MediaDataManager.MBARTIST_API_ENDPOINT}/id"
+
+		data = {
+			"MbId": artist.mbid,
+			"Name": artist.custom_name,
+			"OriginalName": artist.custom_original_name,
+			"Include": artist.include
+		}
+
+		async with httpx.AsyncClient() as client:
+			response = await client.put(f"{endpoint}/{id}", json=data)
+
+			if response.is_success:
+				return
+			
+			match response.status_code:
+				case 404:
+					# TODO: Add some nicer error handler when trying to update an artist that doesn't exist
+					raise Exception(f"Failed to update artist data for MBID {artist.mbid}: {response.text} ({response.status_code} {response.reason_phrase})")
+				case _:
+					raise Exception(f"Failed to update artist data for MBID {artist.mbid}: {response.text} ({response.status_code} {response.reason_phrase})")
 
 async def seedData() -> None:
 	data = {
@@ -173,17 +230,17 @@ async def seedData() -> None:
 	await send_post_request(data)
 
 async def send_post_request(data) -> None:
-    async with httpx.AsyncClient() as client:
-        response = await client.post("http://localhost:23409/api/mbartist", json=data)
-        print('Status Code:', response.status_code)
-        print('Response:', response.text)
+	async with httpx.AsyncClient() as client:
+		response = await client.post("http://localhost:23409/api/mbartist", json=data)
+		print('Status Code:', response.status_code)
+		print('Response:', response.text)
 
 async def main() -> None:
 	await seedData()
 	manager = MediaDataManager()
 	dir = "C:/Users/email_000/Desktop/music/sample/spiceandwolf"
 	await manager.load_directory(dir)
-	print(manager.tracks[0])
+	await manager.persist_mbartist_customizations()
 
 if __name__ == "__main__":
 	asyncio.run(main())
