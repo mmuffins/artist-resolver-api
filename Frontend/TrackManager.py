@@ -2,7 +2,6 @@
 # TODO: deduplicate mbartistdetails list when loading it
 # TODO: check if aliases can be used for better naming predictions
 # TODO: fix that the popup to enter new values is floating in space
-# TODO: datetime import is just for debuggin purposes, remove it
 # TODO: Add handling for files without musicbrainz data
 # TODO: check if data was changed and post changes to DB
 # TODO: move buttons to bottom
@@ -14,14 +13,12 @@
 # TODO: colors -> have specific color for values loaded from the db
 # TODO: colors -> highlight colors that are different from the current id tag / were edited
 
-
 import json
 import httpx
 import os
 import asyncio
 from typing import List, Optional
 from mutagen import id3
-from datetime import datetime
 
 class Alias:
 	def __init__(self, name: str, type: str, locale: Optional[str], begin: Optional[str], end: Optional[str], type_id: str, ended: bool, sort_name: str, primary: bool):
