@@ -9,6 +9,7 @@ from TrackManager import TrackManager
 class TrackManagerGUI:
     # Mapping between columns and source data in format
     data_mapping = {
+        "file_path": {"source_object":"track_details", "property":"file_path", "display_name":"File Path", "width":100, "editable":False, "display":False},
         "title": {"source_object":"track_details", "property":"title", "display_name":"Track Title", "width":100, "editable":False, "display":True},
         "original_title": {"source_object":"track_details", "property":"original_title", "display_name":"Orig Title", "width":100, "editable":False, "display":False},
         "artist": {"source_object":"track_details", "property":"artist", "display_name":"Artist", "width":100, "editable":True, "display":True},
@@ -42,8 +43,8 @@ class TrackManagerGUI:
         self.btn_select_dir.pack(side=tk.LEFT)
 
         # Listbox to display files
-        self.file_listbox = tk.Listbox(self.root, width=100, height=5)
-        self.file_listbox.pack(padx=10, pady=10)
+        self.file_listbox = tk.Listbox(self.root)
+        self.file_listbox.pack(expand=True, fill=tk.BOTH, padx=10, pady=10)
 
         # Scrollbar for the listbox
         self.scrollbar = ttk.Scrollbar(self.root, orient='vertical', command=self.file_listbox.yview)
@@ -81,7 +82,6 @@ class TrackManagerGUI:
             try:
                 asyncio.run(self.track_manager.load_directory(directory))
                 self.populate_table()
-                messagebox.showinfo("Success", "Metadata saved successfully!")
             except Exception as e:
                 messagebox.showerror("Error", str(e))
 
@@ -158,8 +158,8 @@ class TrackManagerGUI:
         if(clicked == None):
             return
 
-        if (self.data_mapping[self.tree.column(clicked.column)["id"]]["editable"] == True):
-            self.edit_cell(clicked.row, clicked.column, event)
+        if (self.data_mapping[self.tree.column(clicked["column"])["id"]]["editable"] == True):
+            self.edit_cell(clicked["row"], clicked["column"], event)
 
     def edit_cell(self, row, column, event):
         entry = ttk.Entry(self.root, width=10)

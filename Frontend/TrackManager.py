@@ -1,10 +1,27 @@
+# TODO: datetime import is just for debuggin purposes, remove it
+# TODO: no data is saved to files
+# TODO: add new columns to live database
+# TODO: deduplicate mbartistdetails list when loading it
+# TODO: check if aliases can be used for better naming predictions
+# TODO: fix that the popup to enter new values is floating in space
+# TODO: Implement logic to check what was changed and only write those changes to the file
+# TODO: write changes to file
+# TODO: check if data was changed and post changes to DB
+# TODO: move buttons to bottom
+# TODO: make separate table for each song
+# TODO: Infer album artist from file path
+# TODO: make gui nicer looking
+# TODO: colors -> grey out rows where included is disabled
+# TODO: colors -> have specific color for values loaded from the db
+# TODO: colors -> highlight colors that are different from the current id tag / were edited
+
+
 import json
 import httpx
 import os
 import asyncio
 from typing import List, Optional
 from mutagen import id3
-# TODO: datetime is just for debuggin purposes, remove it
 from datetime import datetime
 
 class Alias:
