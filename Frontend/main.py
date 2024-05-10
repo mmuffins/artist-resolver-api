@@ -33,27 +33,32 @@ class TrackManagerGUI:
 
     def setup_table(self):
         # Setting up the Treeview widget for displaying metadata
-        self.tree = ttk.Treeview(self.root, columns=("Title", "Artist", "Album", "MBID", "Type", "Sort Name", "Join Phrase"), show='headings')
+        self.tree = ttk.Treeview(self.root, columns=("title", "artist", "album", "include", "mbid", "type", "sort_name", "joinphrase"), show='headings')
+        self.tree["displaycolumns"]=('title', 'artist', 'album', 'include')
         self.tree.pack(expand=True, fill=tk.BOTH, padx=10, pady=10)
 
         # Defining the columns
-        self.tree.heading("Title", text="Track Title")
-        self.tree.heading("Artist", text="Artist")
-        self.tree.heading("Album", text="Album")
-        self.tree.heading("MBID", text="ID")
-        self.tree.heading("Type", text="Type")
-        self.tree.heading("Sort Name", text="Sort Name")
-        self.tree.heading("Join Phrase", text="Join Phrase")
+        self.tree.heading("title", text="Track Title")
+        self.tree.heading("artist", text="Artist")
+        self.tree.heading("album", text="Album")
+        self.tree.heading("include", text="Include")
+        self.tree.heading("mbid", text="ID")
+        self.tree.heading("type", text="Type")
+        self.tree.heading("sort_name", text="Sort Name")
+        self.tree.heading("joinphrase", text="Join Phrase")
 
         # Column widths
-        self.tree.column("Title", width=200)
-        self.tree.column("Artist", width=150)
-        self.tree.column("Album", width=150)
-        self.tree.column("MBID", width=100)
-        self.tree.column("Type", width=100)
-        self.tree.column("Sort Name", width=100)
-        self.tree.column("Join Phrase", width=100)
-        self.tree.column("Type", width=100)
+        self.tree.column("title", width=200)
+        self.tree.column("artist", width=150)
+        self.tree.column("album", width=150)
+        self.tree.column("include", width=50)
+        self.tree.column("mbid", width=100)
+        self.tree.column("type", width=100)
+        self.tree.column("sort_name", width=100)
+        self.tree.column("joinphrase", width=100)
+
+        self.tree.bind("<Button-1>", self.on_single_click)
+        self.tree.bind("<Double-1>", self.on_double_click)
 
         # Button to update metadata
         self.update_button = ttk.Button(self.root, text="Save Changes", command=self.save_changes)
@@ -81,8 +86,19 @@ class TrackManagerGUI:
         self.item_to_object.clear()
         for track in self.track_manager.tracks:
             for artist_detail in track.mbArtistDetails:
-                row_id = self.tree.insert("", "end", values=(artist_detail.include, track.title, artist_detail.name, track.album, artist_detail.mbid, artist_detail.type, artist_detail.sort_name, artist_detail.joinphrase))
-                self.item_to_object[row_id] = {"track":track, "artist_detail":artist_detail}
+                row = self.tree.insert("", "end", values=(
+                    track.title, 
+                    artist_detail.name, 
+                    track.album, 
+                    '☐',
+                    artist_detail.mbid, 
+                    artist_detail.type, 
+                    artist_detail.sort_name, 
+                    artist_detail.joinphrase
+                ))
+                self.tree.set(row, 'include', '☐')
+
+                self.item_to_object[row] = {"track":track, "artist_detail":artist_detail}
 
     def save_changes(self):
         try:
@@ -91,32 +107,50 @@ class TrackManagerGUI:
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
+    def on_single_click(self, event):
+        region = self.tree.identify("region", event.x, event.y)
+        if region == "cell":
+            row = self.tree.identify_row(event.y)
+            column = self.tree.identify_column(event.x)
+            if self.tree.column(column)["id"] == "include":
+                current_value = self.tree.set(row, 'include')
+                self.tree.set(row, 'include', '☑' if current_value == '☐' else '☐')
+
     def on_double_click(self, event):
         # Get the treeview item clicked
         region = self.tree.identify("region", event.x, event.y)
         if region == "cell":
-            row_id = self.tree.identify_row(event.y)
+            row = self.tree.identify_row(event.y)
             column = self.tree.identify_column(event.x)
-            if self.tree.heading(column)['text'] == "Sort Name":
-                self.edit_cell(row_id, column)
+            if self.tree.column(column)["id"] == "sort_name":
+                self.edit_cell(row, column, event)
 
-    def edit_cell(self, row_id, column):
-        # Create entry widget to edit cell value
-        entry = ttk.Entry(self.root)
-        entry.place(x=self.tree.bbox(row_id, column)[0], y=self.tree.bbox(row_id, column)[1], width=self.tree.bbox(row_id, column)[2], height=self.tree.bbox(row_id, column)[3])
 
-        # Set current value
-        current_value = self.tree.set(row_id, column)
-        entry.insert(0, current_value)
+    def edit_cell(self, row, column, event):
+        # cell_x, cell_y, cell_width, cell_height = self.tree.bbox(row_id, column)
+        # # Create entry widget to edit cell value, make it borderless and flat.
+        # entry = ttk.Entry(self.root)
+        # entry.place(x=cell_x, y=cell_y, width=cell_width, height=cell_height)
+        # # entry.configure(font=self.tree["font"])  # Match font with the Treeview
+
+        # # Set current value and select it
+        # current_value = self.tree.set(row_id, column)
+        # entry.insert(0, current_value)
+        # entry.select_range(0, tk.END)
+        # entry.focus()
+
+        entry = ttk.Entry(self.root, width=10)
+        entry.place(x=event.x, y=event.y)
+        entry.insert(0, self.tree.set(row, column))
         entry.focus()
 
         # Function to save the new value
         def save_new_value(event):
             new_value = entry.get()
-            self.tree.set(row_id, column, new_value)
+            self.tree.set(row, column=column, value=entry.get())
             entry.destroy()
             # Here you update the underlying data structure
-            row_track = self.item_to_object.get(row_id)
+            row_track = self.item_to_object.get(row)
             if row_track:
                 row_track["artist_detail"].sort_name  = new_value
             
