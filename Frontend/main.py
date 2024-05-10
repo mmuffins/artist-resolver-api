@@ -80,6 +80,7 @@ class TrackManagerGUI:
         directory = filedialog.askdirectory()
         if directory:
             try:
+                self.track_manager = TrackManager()
                 asyncio.run(self.track_manager.load_directory(directory))
                 self.populate_table()
             except Exception as e:
