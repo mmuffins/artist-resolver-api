@@ -1,14 +1,13 @@
-# TODO: datetime import is just for debuggin purposes, remove it
-# TODO: no data is saved to files
 # TODO: add new columns to live database
 # TODO: deduplicate mbartistdetails list when loading it
 # TODO: check if aliases can be used for better naming predictions
 # TODO: fix that the popup to enter new values is floating in space
-# TODO: Implement logic to check what was changed and only write those changes to the file
-# TODO: write changes to file
+# TODO: datetime import is just for debuggin purposes, remove it
+# TODO: Add handling for files without musicbrainz data
 # TODO: check if data was changed and post changes to DB
 # TODO: move buttons to bottom
 # TODO: make separate table for each song
+# TODO: save_file_metadata works already but immediately returns for debugging reasons
 # TODO: Infer album artist from file path
 # TODO: make gui nicer looking
 # TODO: colors -> grey out rows where included is disabled
@@ -111,10 +110,29 @@ class MbArtistDetais:
 		return track_list
 
 class TrackDetails:
+	tag_mappings = {
+		'TIT2': {"property": "title", "frame": id3.TIT2},
+		'TPE1': {"property": "artist", "frame": id3.TPE1},
+		'TALB': {"property": "album", "frame": id3.TALB},
+		'TPE2': {"property": "album_artist", "frame": id3.TPE2},
+		'TIT1': {"property": "grouping", "frame": id3.TIT1},
+		'TOAL': {"property": "original_album", "frame": id3.TOAL},
+		'TOPE': {"property": "original_artist", "frame": id3.TOPE},
+		'TPE3': {"property": "original_title", "frame": id3.TPE3}
+	}
+
 	def __init__(self, file_path: str, manager):
 		self.file_path = file_path
 		self.manager = manager
 		self.title = None
+		self.artist = None
+		self.album = None
+		self.album_artist = None
+		self.grouping = None
+		self.original_album = None
+		self.original_artist = None
+		self.original_title = None
+
 		
 	def __str__(self):
 		return	f"{self.title}"
@@ -125,34 +143,35 @@ class TrackDetails:
 	async def read_file_metadata(self) -> None:
 		loop = asyncio.get_event_loop()
 		self.id3 = await loop.run_in_executor(None, lambda: id3.ID3(self.file_path))
-		self.title = self.id3.get('TIT2',[''])[0]
-		self.artist = self.id3.get('TPE1', [''])[0]
-		self.album = self.id3.get('TALB', [''])[0]
-		self.album_artist = self.id3.get('TPE2', [''])[0]
-		self.grouping = self.id3.get('GRP1', [''])[0]
-		self.original_album = self.id3.get('TOAL', [''])[0]
-		self.original_artist = self.id3.get('TOPE', [''])[0]
-		self.original_title = self.id3.get('TPE3', [''])[0]
-		
-		artist_relations = ([frame for frame in self.id3.getall("TXXX") if frame.desc == 'artist_relations_json'])[0].text[0]
-		self.mbArtistDetails = await self.manager.parse_mbartist_json(artist_relations)
+		for tag, mapping  in self.tag_mappings.items():
+			value = self.id3.get(tag, [''])[0]
+			setattr(self, mapping["property"], value)
+
+		# the artist_relations array is not a specific ID3 tag but is stored as text in the general purpose TXXX frame
+		artist_relations_frame = next((frame for frame in self.id3.getall("TXXX") if frame.desc == 'artist_relations_json'), None)
+		if artist_relations_frame:
+			artist_relations = artist_relations_frame.text[0]
+			self.mbArtistDetails = await self.manager.parse_mbartist_json(artist_relations)
 
 	def save_file_metadata(self) -> None:
+		return
 		file_changed: bool = False
 
-		# disabled to not overwrite test data
-		# self.id3["TSRC"] = id3.TSRC(encoding=3, text=datetime.now().strftime("%H-%M"))
-		# self.id3["TPE3"] = id3.TPE3(encoding=3, text=self.original_title)
-		# self.id3["TIT2"] = id3.TIT2(encoding=3, text=self.title)
-		# self.id3["TPE1"] = id3.TPE1(encoding=3, text=self.artist)
-		# self.id3["TALB"] = id3.TALB(encoding=3, text=self.album)
-		# self.id3["TPE2"] = id3.TPE2(encoding=3, text=self.album_artist)
-		# self.id3["GRP1"] = id3.GRP1(encoding=3, text=self.grouping)
-		# self.id3["TOAL"] = id3.TOAL(encoding=3, text=self.original_album)
-		# self.id3["TOPE"] = id3.TOPE(encoding=3, text=self.original_artist)
-		
-		if self.artist:
-			self.id3["TPE1"] = id3.TPE1(encoding=3, text=self.artist)
+		for tag, mapping  in self.tag_mappings.items():
+			value = getattr(self, mapping["property"])
+			file_value = self.id3.get(tag, [''])[0]
+
+			if value:
+				if file_value != value:
+					# the current property has a value and it's different from the value in the file
+					# self.frame_mapping[tag](encoding=3, text=value)
+					self.id3[tag] = mapping["frame"](encoding=3, text=value)
+					file_changed = True
+			else:
+				if file_value:
+					# the current property doesn't have a value, but the file doesn't
+					# pop is executed immediately, so file_changed doesn't need to be set
+					self.id3.pop(tag, None)
 
 		if file_changed:
 			self.id3.save(self.file_path)
@@ -168,10 +187,10 @@ class TrackManager:
 
 	async def load_directory(self, directory: str) -> None:
 		self.directory = directory
-		self.load_files()
+		self.get_mp3_files()
 		await self.read_file_metadata()
 
-	def load_files(self) -> None:
+	def get_mp3_files(self) -> None:
 		for root, dirs, files in os.walk(self.directory):
 			for file in files:
 				if file.endswith(".mp3"):
