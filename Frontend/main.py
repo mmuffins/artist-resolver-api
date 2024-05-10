@@ -33,28 +33,61 @@ class TrackManagerGUI:
 
     def setup_table(self):
         # Setting up the Treeview widget for displaying metadata
-        self.tree = ttk.Treeview(self.root, columns=("title", "artist", "album", "include", "mbid", "type", "sort_name", "joinphrase"), show='headings')
-        self.tree["displaycolumns"]=('title', 'artist', 'album', 'include')
+        self.tree = ttk.Treeview(self.root, columns=(
+            "title", 
+            "original_title", 
+            "artist", 
+            "artist_sort", 
+            "original_artist", 
+            "original_artist_sort", 
+            "album", 
+            "original_album", 
+            "album_artist", 
+            "grouping", 
+            "include", 
+            "mbid", 
+            "type", 
+            "sort_name", 
+            "joinphrase"
+        ), show='headings')
+        self.tree["displaycolumns"]=(
+            'title', 
+            'artist', 
+            'album', 
+            'include'
+            )
         self.tree.pack(expand=True, fill=tk.BOTH, padx=10, pady=10)
 
         # Defining the columns
         self.tree.heading("title", text="Track Title")
+        self.tree.heading("original_title", text="")
         self.tree.heading("artist", text="Artist")
+        self.tree.heading("artist_sort", text="")
+        self.tree.heading("original_artist", text="")
+        self.tree.heading("original_artist_sort", text="")
         self.tree.heading("album", text="Album")
-        self.tree.heading("include", text="Include")
+        self.tree.heading("original_album", text="")
+        self.tree.heading("album_artist", text="")
+        self.tree.heading("grouping", text="")
+        self.tree.heading("include", text="Set")
         self.tree.heading("mbid", text="ID")
         self.tree.heading("type", text="Type")
-        self.tree.heading("sort_name", text="Sort Name")
         self.tree.heading("joinphrase", text="Join Phrase")
 
         # Column widths
-        self.tree.column("title", width=200)
-        self.tree.column("artist", width=150)
-        self.tree.column("album", width=150)
-        self.tree.column("include", width=50)
+        self.tree.column("title", width=100)
+        self.tree.column("original_title", width=100)
+        self.tree.column("artist", width=100)
+        self.tree.column("artist_sort", width=100)
+        self.tree.column("original_artist", width=100)
+        self.tree.column("original_artist_sort", width=100)
+        self.tree.column("album", width=100)
+        self.tree.column("original_album", width=100)
+        self.tree.column("album_artist", width=100)
+        self.tree.column("grouping", width=100)
+        self.tree.column("include", width=30)
         self.tree.column("mbid", width=100)
         self.tree.column("type", width=100)
-        self.tree.column("sort_name", width=100)
         self.tree.column("joinphrase", width=100)
 
         self.tree.bind("<Button-1>", self.on_single_click)
@@ -88,14 +121,23 @@ class TrackManagerGUI:
             for artist_detail in track.mbArtistDetails:
                 row = self.tree.insert("", "end", values=(
                     track.title, 
+                    "original_title", 
                     artist_detail.name, 
+                    artist_detail.sort_name, 
+                    "original_artist", 
+                    "original_artist_sort", 
                     track.album, 
+                    "original_album", 
+                    "album_artist", 
+                    "grouping", 
                     '☐',
                     artist_detail.mbid, 
                     artist_detail.type, 
-                    artist_detail.sort_name, 
+                    "sort_name", 
                     artist_detail.joinphrase
                 ))
+
+
                 self.tree.set(row, 'include', '☐')
 
                 self.item_to_object[row] = {"track":track, "artist_detail":artist_detail}

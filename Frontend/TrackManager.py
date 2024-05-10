@@ -111,6 +111,11 @@ class TrackDetails:
 		self.title = self.id3.get('TIT2',[''])[0]
 		self.artist = self.id3.get('TPE1', [''])[0]
 		self.album = self.id3.get('TALB', [''])[0]
+		self.album_artist = self.id3.get('TPE2', [''])[0]
+		self.grouping = self.id3.get('GRP1', [''])[0]
+		self.original_album = self.id3.get('TOAL', [''])[0]
+		self.original_artist = self.id3.get('TOPE', [''])[0]
+		self.original_title = self.id3.get('TPE3', [''])[0]
 		
 		artist_relations = ([frame for frame in self.id3.getall("TXXX") if frame.desc == 'artist_relations_json'])[0].text[0]
 		self.mbArtistDetails = await self.manager.parse_mbartist_json(artist_relations)
@@ -118,10 +123,19 @@ class TrackDetails:
 	def save_file_metadata(self) -> None:
 		file_changed: bool = False
 
-		self.id3["TSRC"] = id3.TSRC(encoding=3, text=datetime.now().strftime("%H-%M"))
+		# disabled to not overwrite test data
+		# self.id3["TSRC"] = id3.TSRC(encoding=3, text=datetime.now().strftime("%H-%M"))
+		# self.id3["TPE3"] = id3.TPE3(encoding=3, text=self.original_title)
+		# self.id3["TIT2"] = id3.TIT2(encoding=3, text=self.title)
+		# self.id3["TPE1"] = id3.TPE1(encoding=3, text=self.artist)
+		# self.id3["TALB"] = id3.TALB(encoding=3, text=self.album)
+		# self.id3["TPE2"] = id3.TPE2(encoding=3, text=self.album_artist)
+		# self.id3["GRP1"] = id3.GRP1(encoding=3, text=self.grouping)
+		# self.id3["TOAL"] = id3.TOAL(encoding=3, text=self.original_album)
+		# self.id3["TOPE"] = id3.TOPE(encoding=3, text=self.original_artist)
 		
 		if self.artist:
-			self.id3["TEXT"] = id3.TEXT(encoding=3, text=self.artist)
+			self.id3["TPE1"] = id3.TPE1(encoding=3, text=self.artist)
 
 		if file_changed:
 			self.id3.save(self.file_path)
