@@ -16,10 +16,20 @@
 # TODO: colors -> have specific color for values loaded from the db
 # TODO: colors -> highlight colors that are different from the current id tag / were edited
 
-import json
-import httpx
+# simple 1: artist and alias does not exist on server
+# simple 2: artist / alias exist on server and is equal to local data
+# simple 3: artist / alias exist on server, custom name was changed to artist that doesn't exist on server
+# simple 4: artist / alias exist on server, custom name was changed to artist that already exists on server
+# mbid 1: mbid does not exist on server
+# mbid 2: mbid already exists on server,is equal to local data
+# mbid 3: mbid already exists on server, custom name was changed
+
+
+import hashlib
 import os
 import re
+import json
+import httpx
 import asyncio
 from typing import List, Optional
 from mutagen import id3
@@ -114,17 +124,36 @@ class MbArtistDetails:
 			MbArtistDetails.from_dict(item, track_list)
 		return track_list
 	
+
+class SimpleArtistDetails(MbArtistDetails):
+	def __init__(self, name: str, type: str, disambiguation: str, sort_name: str, id: str, aliases: List[Alias], type_id: str, joinphrase: Optional[str], include: bool = True, product: str = "", product_id: str = ""):
+		super().__init__(name, type, disambiguation, sort_name, id, aliases, type_id, joinphrase, include)
+		
+		self.product = product
+		self.product_id = product_id
+		self.mbid = SimpleArtistDetails.generate_instance_hash(f"{self.name}-{self.product_id}")
+
+	def __str__(self):
+		return f"{self.name}"
+
+	def __repr__(self):
+		return f"{self.name}"
+
 	@staticmethod
-	def parse_simple_artist(artist_list: str) -> List['MbArtistDetails']:
-		split_artists = MbArtistDetails.split_artist(artist_list)
-		mbartist_list: List['MbArtistDetails'] = []
+	def generate_instance_hash(unique_string: str):
+		return hashlib.sha256(unique_string.encode()).hexdigest()
+
+	@staticmethod
+	def parse_simple_artist(artist_list: str, product: str, product_id: int) -> List['SimpleArtistDetails']:
+		split_artists = SimpleArtistDetails.split_artist(artist_list)
+		mbartist_list: List['SimpleArtistDetails'] = []
 		for artist in split_artists:
-			mbartist_list.append(MbArtistDetails.from_simple_artist(artist, mbartist_list))
+			mbartist_list.append(SimpleArtistDetails.from_simple_artist(artist, product, product_id, mbartist_list))
 		return mbartist_list
 
 	@classmethod
-	def from_simple_artist(cls, artist: str, artist_list: List['MbArtistDetails']):
-		extracedArtist = MbArtistDetails.extract_cv_artist(artist)
+	def from_simple_artist(cls, artist: str, product: str, product_id: int, artist_list: List['SimpleArtistDetails']):
+		extracedArtist = SimpleArtistDetails.extract_cv_artist(artist)
 		artistType = "Character"
 		artist_include = False
 
@@ -139,10 +168,12 @@ class MbArtistDetails:
 			type = artistType,
 			disambiguation=None,
 			sort_name=None,
-			id=None,
 			aliases=[],
+			id=None,
 			type_id=None,
-			joinphrase=None
+			joinphrase=None,
+			product = product,
+			product_id = product_id
 		)
 
 		return mbartist
@@ -161,12 +192,12 @@ class MbArtistDetails:
 
 	@staticmethod
 	def split_artist(artist):
-		artist_list = MbArtistDetails.split_artist_list(artist)
+		artist_list = SimpleArtistDetails.split_artist_list(artist)
 
 		split_list = []
 		for regex_artist in artist_list:
 			# For each component, further split it if it contains (CV xxx)
-			parts = MbArtistDetails.split_artist_cv(regex_artist)
+			parts = SimpleArtistDetails.split_artist_cv(regex_artist)
 			# Append each part to the final list, removing empty strings
 			split_list.extend([p.strip() for p in parts if p.strip()])
 
@@ -197,7 +228,6 @@ class MbArtistDetails:
 		product["name"] = "_"
 		return product
 
-
 class TrackDetails:
 	tag_mappings = {
 		'TIT2': {"property": "title", "frame": id3.TIT2},
@@ -223,7 +253,6 @@ class TrackDetails:
 		self.original_title = None
 		self.has_mbartist_details: bool = False
 		self.product = None
-		self.product_id = None
 		self.update_file: bool = True
 		
 	def __str__(self):
@@ -241,6 +270,7 @@ class TrackDetails:
 
 		# the artist_relations array is not a specific ID3 tag but is stored as text in the general purpose TXXX frame
 		artist_relations_frame = next((frame for frame in self.id3.getall("TXXX") if frame.desc == 'artist_relations_json'), None)
+		
 		if artist_relations_frame:
 			artist_relations = artist_relations_frame.text[0]
 			self.mbArtistDetails = await self.manager.parse_mbartist_json(artist_relations)
@@ -303,21 +333,27 @@ class TrackManager:
 	async def read_file_metadata(self) -> None:
 		await asyncio.gather(*(track.read_file_metadata() for track in self.tracks))
 
-	async def parse_simple_artist(self, track: TrackDetails) -> list[MbArtistDetails]:
-		server_products = await TrackManager.list_simple_artist_franchise()
+	async def parse_simple_artist(self, track: TrackDetails) -> list[SimpleArtistDetails]:
+		if not hasattr(self, 'db_products') or not self.db_products:
+			self.db_products = await TrackManager.list_simple_artist_franchise()
+		
+		returnObj: list[SimpleArtistDetails] = []
 
-		product = MbArtistDetails.parse_simple_artist_franchise(track.product, track.album_artist, server_products)
+		product = SimpleArtistDetails.parse_simple_artist_franchise(track.product, track.album_artist, self.db_products)
 		track.product = product["name"]
-		track.product_id = product["id"]
-
-		artist_details = MbArtistDetails.parse_simple_artist(track.artist)
+		artist_details = SimpleArtistDetails.parse_simple_artist(track.artist, product["name"], product["id"])
 
 		for artist in artist_details:
-			alias = await TrackManager.get_simple_artist_alias(artist.name, track.product_id)
+			if artist.mbid not in self.mb_artist_data:
+				self.mb_artist_data[artist.mbid] = artist
+
+			alias = await TrackManager.get_simple_artist_alias(artist.name, artist.product_id)
 			if alias:
 				artist.update_from_simple_artist_dict(alias[0])
 
-		return artist_details
+			returnObj.append(self.mb_artist_data[artist.mbid])
+
+		return returnObj
 	
 
 	async def parse_mbartist_json(self, artist_relations_json: str) -> list[MbArtistDetails]:
@@ -327,7 +363,7 @@ class TrackManager:
 			if artist.mbid not in self.mb_artist_data:
 				self.mb_artist_data[artist.mbid] = artist
 
-				mb_artist_details = await self.get_mbartist(artist.mbid)
+				mb_artist_details = await TrackManager.get_mbartist(artist.mbid)
 				if mb_artist_details:
 					artist.update_from_customization(mb_artist_details)
 
@@ -335,17 +371,32 @@ class TrackManager:
 
 		return returnObj
 
-	async def persist_mbartist_customizations(self) -> None:
+	async def send_changes_to_db(self) -> None:
 		for artist in self.mb_artist_data.values():
-			customization = await self.get_mbartist(artist.mbid)
-			if (None == customization):
-				await TrackManager.post_mbartist(artist)
+			if isinstance(artist, SimpleArtistDetails):
+				TrackManager.send_simple_artist_changes_to_db(None, artist)
 			else:
-				await TrackManager.update_mbartist(customization['id'], artist)
+				TrackManager.send_mbartist_changes_to_db(None, artist)
 
-	async def get_mbartist(self, mbid:str) -> dict:
+
+	@staticmethod
+	async def send_mbartist_changes_to_db(track: TrackDetails, artist: MbArtistDetails) -> None:
+		customization = await TrackManager.get_mbartist(artist.mbid)
+		if (None == customization):
+			await TrackManager.post_mbartist(artist)
+		else:
+			await TrackManager.update_mbartist(customization['id'], artist)
+
+	@staticmethod
+	async def send_simple_artist_changes_to_db(track: TrackDetails, artist: SimpleArtistDetails) -> None:
+		postedArtist = await TrackManager.post_simple_artist(artist)
+		postedAlias = TrackManager.post_simple_artist_alias(postedArtist.id, artist.custom_name, )
+	
+	@staticmethod
+	async def get_mbartist(mbid:str) -> dict:
 		async with httpx.AsyncClient() as client:
 			response = await client.get(f"http://localhost:23409/api/mbartist/mbid/{mbid}")
+			
 			match response.status_code:
 				case 200:
 					artist_info = response.json()
@@ -448,7 +499,7 @@ class TrackManager:
 					raise Exception(f"Failed to create artist with MBID {artist.mbid}: {response.text} ({response.status_code} {response.reason_phrase})")
 	
 	@staticmethod
-	async def post_simple_artist(self, artist:MbArtistDetails) -> None:
+	async def post_simple_artist(self, artist:SimpleArtistDetails) -> None:
 		endpoint = f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.SIMPLE_ARTIST_API_ENDPOINT}"
 
 		data = {
@@ -513,7 +564,7 @@ class TrackManager:
 					raise Exception(f"Failed to update artist data for MBID {artist.mbid}: {response.text} ({response.status_code} {response.reason_phrase})")
 
 	@staticmethod
-	async def update_simple_artist(self, id:int, artist:MbArtistDetails) -> None:
+	async def update_simple_artist(self, id:int, artist:SimpleArtistDetails) -> None:
 		endpoint = f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.SIMPLE_ARTIST_API_ENDPOINT}/id"
 
 		data = {
@@ -616,11 +667,11 @@ async def send_get_request(url) -> None:
 async def main() -> None:
 	# await seedData()
 	manager = TrackManager()
-	dir = "C:/Users/email_000/Desktop/music/sample/spiceandwolf"
 	dir = "C:/Users/email_000/Desktop/music/sample/nodetailsmultiple"
+	dir = "C:/Users/email_000/Desktop/music/sample/spiceandwolf"
 	dir = "C:/Users/email_000/Desktop/music/sample/nodetails"
 	await manager.load_directory(dir)
-	await manager.persist_mbartist_customizations()
+	await manager.send_changes_to_db()
 	await manager.save_files()
 
 if __name__ == "__main__":
