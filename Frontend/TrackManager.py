@@ -1,9 +1,10 @@
 # TODO: add new columns to live database
 # TODO: Make type editable. Should be a dropdown with Person, Character, Group
-# TODO: deduplicate mbartistdetails list when loading it
+# TODO: deduplicate mbartistdetails list in gridview when loading it
+# TODO: add checks for existing data when posting/updating to db
 # TODO: check if aliases can be used for better naming predictions
 # TODO: fix that the popup to enter new values is floating in space
-# TODO: Add handling for files without musicbrainz data
+# TODO: post changes for simple artists
 # TODO: check if data was changed and post changes to DB
 # TODO: move buttons to bottom
 # TODO: make separate table for each song
@@ -18,6 +19,7 @@
 import json
 import httpx
 import os
+import re
 import asyncio
 from typing import List, Optional
 from mutagen import id3
@@ -54,9 +56,9 @@ class Alias:
 			primary=data.get("primary", False)
 		)
 
-class MbArtistDetais:
-	def __init__(self, name: str, type: str, disambiguation: str, sort_name: str, id: str, aliases: List[Alias], type_id: str, joinphrase: Optional[str]):
-		self.include: bool = True
+class MbArtistDetails:
+	def __init__(self, name: str, type: str, disambiguation: str, sort_name: str, id: str, aliases: List[Alias], type_id: str, joinphrase: Optional[str], include:bool = True):
+		self.include: bool = include
 		self.name = name
 		self.type = type
 		self.disambiguation = disambiguation
@@ -81,9 +83,13 @@ class MbArtistDetais:
 		self.custom_original_name = data['originalName']
 		self.id = data['id']
 
+	def update_from_simple_artist_dict(self, data: dict) -> None:
+		self.custom_name = data['artist']
+		self.custom_original_name = data['name']
+		self.id = data['artistId']
 
 	@classmethod
-	def from_dict(cls, data: dict, track_list: List['MbArtistDetais']):
+	def from_dict(cls, data: dict, track_list: List['MbArtistDetails']):
 		aliases = [Alias.from_dict(alias) for alias in data.get("aliases", [])]
 		track = cls(
 			name=data.get("name"),
@@ -101,12 +107,96 @@ class MbArtistDetais:
 			cls.from_dict(relation, track_list)
 
 	@staticmethod
-	def parse_json(json_str: str) -> List['MbArtistDetais']:
+	def parse_json(json_str: str) -> List['MbArtistDetails']:
 		data = json.loads(json_str)
-		track_list = []
+		track_list: List['MbArtistDetails'] = []
 		for item in data:
-			MbArtistDetais.from_dict(item, track_list)
+			MbArtistDetails.from_dict(item, track_list)
 		return track_list
+	
+	@staticmethod
+	def parse_simple_artist(artist_list: str) -> List['MbArtistDetails']:
+		split_artists = MbArtistDetails.split_artist(artist_list)
+		mbartist_list: List['MbArtistDetails'] = []
+		for artist in split_artists:
+			mbartist_list.append(MbArtistDetails.from_simple_artist(artist, mbartist_list))
+		return mbartist_list
+
+	@classmethod
+	def from_simple_artist(cls, artist: str, artist_list: List['MbArtistDetails']):
+		extracedArtist = MbArtistDetails.extract_cv_artist(artist)
+		artistType = "Character"
+		artist_include = False
+
+		if(extracedArtist == None):
+			artistType = "Person"
+			extracedArtist = artist
+			artist_include = True
+
+		mbartist = cls(
+			include = artist_include,
+			name = extracedArtist,
+			type = artistType,
+			disambiguation=None,
+			sort_name=None,
+			id=None,
+			aliases=[],
+			type_id=None,
+			joinphrase=None
+		)
+
+		return mbartist
+	
+	@staticmethod
+	def split_artist_list(artist):
+		# Split by common delimiters but keep parenthesis intact
+		regex = re.compile(r'\s?[,&;、×]\s?|\sand\s|\s?with\s?|\s?feat\.?(?:uring)?\s?')
+		return regex.split(artist)
+
+	@staticmethod
+	def split_artist_cv(artist):
+		# Match and split at parenthesis but keep the parenthesis content as separate elements
+		regex = re.compile(r'(\s?[\(|（](?:[Cc][Vv][\:|\.|：]?\s?).*[\)|）])')
+		return regex.split(artist)
+
+	@staticmethod
+	def split_artist(artist):
+		artist_list = MbArtistDetails.split_artist_list(artist)
+
+		split_list = []
+		for regex_artist in artist_list:
+			# For each component, further split it if it contains (CV xxx)
+			parts = MbArtistDetails.split_artist_cv(regex_artist)
+			# Append each part to the final list, removing empty strings
+			split_list.extend([p.strip() for p in parts if p.strip()])
+
+		return split_list
+	
+	@staticmethod
+	def extract_cv_artist(cv_artist: str) -> str:
+		regex = re.compile(r'\((?:[Cc][Vv][\:|\.|：]?\s?)([^)]+)\)')
+		match = regex.search(cv_artist)
+		return match.group(1) if match else None
+
+	@staticmethod
+	def parse_simple_artist_franchise(track_product, track_album_artist, product_list: dict) -> dict:
+		product = {"id": None}
+
+		if not track_product:
+			product["name"] = track_album_artist
+
+		# the default product indicating that the track doesn't belong to a franchise is _
+		if not product["name"]:
+			product["name"] = "_"
+		
+		resolved_product = [p for p in product_list if p["name"] == product["name"]]
+
+		if resolved_product:
+			return resolved_product[0]
+			
+		product["name"] = "_"
+		return product
+
 
 class TrackDetails:
 	tag_mappings = {
@@ -131,7 +221,10 @@ class TrackDetails:
 		self.original_album = None
 		self.original_artist = None
 		self.original_title = None
-
+		self.has_mbartist_details: bool = False
+		self.product = None
+		self.product_id = None
+		self.update_file: bool = True
 		
 	def __str__(self):
 		return	f"{self.title}"
@@ -151,6 +244,10 @@ class TrackDetails:
 		if artist_relations_frame:
 			artist_relations = artist_relations_frame.text[0]
 			self.mbArtistDetails = await self.manager.parse_mbartist_json(artist_relations)
+			self.has_mbartist_details = True
+		else:
+			self.mbArtistDetails = await self.manager.parse_simple_artist(self)
+		
 
 	def save_file_metadata(self) -> None:
 		return
@@ -176,13 +273,16 @@ class TrackDetails:
 			self.id3.save(self.file_path)
 
 class TrackManager:
+	SIMPLE_ARTIST_API_ENDPOINT = "api/artist"
+	SIMPLE_ARTIST_ALIAS_API_ENDPOINT = "api/alias"
+	SIMPLE_ARTIST_FRANCHISE_API_ENDPOINT = "api/franchise"
 	MBARTIST_API_ENDPOINT = "api/mbartist"
 	MBARTIST_API_PORT = 23409
 	MBARTIST_API_DOMAIN = "localhost"
 
 	def __init__(self):
 		self.tracks: list[TrackDetails] = []
-		self.mb_artist_data: dict[MbArtistDetais] = {}
+		self.mb_artist_data: dict[MbArtistDetails] = {}
 
 	async def load_directory(self, directory: str) -> None:
 		self.directory = directory
@@ -203,22 +303,47 @@ class TrackManager:
 	async def read_file_metadata(self) -> None:
 		await asyncio.gather(*(track.read_file_metadata() for track in self.tracks))
 
-	async def parse_mbartist_json(self, artist_relations_json: str) -> list[MbArtistDetais]:
-		artist_details = MbArtistDetais.parse_json(artist_relations_json)
-		returnObj: List[MbArtistDetais] = []
+	async def parse_simple_artist(self, track: TrackDetails) -> list[MbArtistDetails]:
+		server_products = await TrackManager.list_simple_artist_franchise()
+
+		product = MbArtistDetails.parse_simple_artist_franchise(track.product, track.album_artist, server_products)
+		track.product = product["name"]
+		track.product_id = product["id"]
+
+		artist_details = MbArtistDetails.parse_simple_artist(track.artist)
+
+		for artist in artist_details:
+			alias = await TrackManager.get_simple_artist_alias(artist.name, track.product_id)
+			if alias:
+				artist.update_from_simple_artist_dict(alias[0])
+
+		return artist_details
+	
+
+	async def parse_mbartist_json(self, artist_relations_json: str) -> list[MbArtistDetails]:
+		artist_details = MbArtistDetails.parse_json(artist_relations_json)
+		returnObj: List[MbArtistDetails] = []
 		for artist in artist_details:
 			if artist.mbid not in self.mb_artist_data:
 				self.mb_artist_data[artist.mbid] = artist
 
-				mb_artist_details = await self.get_mbartist_customization(artist.mbid)
-				if(None != mb_artist_details):
+				mb_artist_details = await self.get_mbartist(artist.mbid)
+				if mb_artist_details:
 					artist.update_from_customization(mb_artist_details)
 
 			returnObj.append(self.mb_artist_data[artist.mbid])
 
 		return returnObj
 
-	async def get_mbartist_customization(self, mbid:str) -> dict:
+	async def persist_mbartist_customizations(self) -> None:
+		for artist in self.mb_artist_data.values():
+			customization = await self.get_mbartist(artist.mbid)
+			if (None == customization):
+				await TrackManager.post_mbartist(artist)
+			else:
+				await TrackManager.update_mbartist(customization['id'], artist)
+
+	async def get_mbartist(self, mbid:str) -> dict:
 		async with httpx.AsyncClient() as client:
 			response = await client.get(f"http://localhost:23409/api/mbartist/mbid/{mbid}")
 			match response.status_code:
@@ -230,15 +355,77 @@ class TrackManager:
 				case _:
 					raise Exception(f"Failed to fetch artist data for MBID {mbid}: {response.status_code}")
 
-	async def persist_mbartist_customizations(self) -> None:
-		for artist in self.mb_artist_data.values():
-			customization = await self.get_mbartist_customization(artist.mbid)
-			if (None == customization):
-				await self.post_mbartist_customization(artist)
-			else:
-				await self.update_mbartist_customization(customization['id'], artist)
+	@staticmethod
+	async def list_simple_artist_franchise() -> dict:
+		endpoint = f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.SIMPLE_ARTIST_FRANCHISE_API_ENDPOINT}"
 
-	async def post_mbartist_customization(self, artist:MbArtistDetais) -> None:
+		async with httpx.AsyncClient() as client:
+			response = await client.get(f"{endpoint}")
+			if response.status_code == 200:
+				return response.json()
+			else:
+				return None
+
+	@staticmethod
+	async def get_simple_artist_franchise(name: str = None) -> dict:
+		endpoint = f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.SIMPLE_ARTIST_FRANCHISE_API_ENDPOINT}"
+
+		if not name:
+			raise ValueError("No parameters were provided to query.")
+
+		async with httpx.AsyncClient() as client:
+			response = await client.get(f"{endpoint}?name={name}")
+			if response.status_code == 200:
+				return response.json()
+			else:
+				return None
+
+	@staticmethod
+	async def get_simple_artist(self, id:int, name:str) -> dict:
+		endpoint = f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.SIMPLE_ARTIST_API_ENDPOINT}?"
+		params = {}
+
+		if id:
+			params['id'] = id
+		if name:
+			params['name'] = name
+			
+		if not params:
+			raise ValueError("No parameters were provided to query.")
+		
+		query_string = "&".join([f"{key}={value}" for key, value in params.items()])
+
+		async with httpx.AsyncClient() as client:
+			response = await client.get(f"{endpoint}?{query_string}")
+			if response.status_code == 200:
+				return response.json()
+			else:
+				return None
+	
+	@staticmethod
+	async def get_simple_artist_alias(name: str = None, franchiseId: int = None) -> dict:
+		endpoint = f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.SIMPLE_ARTIST_ALIAS_API_ENDPOINT}"
+		params = {}
+
+		if name:
+			params['name'] = name
+		if franchiseId:
+			params['franchiseId'] = franchiseId
+
+		if not params:
+			raise ValueError("No parameters were provided to query.")
+		
+		query_string = "&".join([f"{key}={value}" for key, value in params.items()])
+
+		async with httpx.AsyncClient() as client:
+			response = await client.get(f"{endpoint}?{query_string}")
+			if response.status_code == 200:
+				return response.json()
+			else:
+				return None
+
+	@staticmethod
+	async def post_mbartist(self, artist:MbArtistDetails) -> None:
 		endpoint = f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.MBARTIST_API_ENDPOINT}"
 
 		data = {
@@ -249,19 +436,61 @@ class TrackManager:
 		}
 
 		async with httpx.AsyncClient() as client:
-			response = await client.post(f"{endpoint}", json=data)
+			response = await client.post(endpoint, json=data)
 
 			if response.is_success:
 				return
 			
 			match response.status_code:
 				case 409:
-					# TODO: Add some nicer error handler when trying to post duplicates
+					raise Exception(f"Artist with MBID {artist.mbid} already exists in DB: {response.text} ({response.status_code} {response.reason_phrase})")
+				case _:
+					raise Exception(f"Failed to create artist with MBID {artist.mbid}: {response.text} ({response.status_code} {response.reason_phrase})")
+	
+	@staticmethod
+	async def post_simple_artist(self, artist:MbArtistDetails) -> None:
+		endpoint = f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.SIMPLE_ARTIST_API_ENDPOINT}"
+
+		data = {
+			"Name": artist.custom_name
+		}
+
+		async with httpx.AsyncClient() as client:
+			response = await client.post(endpoint, json=data)
+
+			if response.is_success:
+				return
+			
+			match response.status_code:
+				case 409:
 					raise Exception(f"Failed to post artist data for MBID {artist.mbid}: {response.text} ({response.status_code} {response.reason_phrase})")
 				case _:
 					raise Exception(f"Failed to post artist data for MBID {artist.mbid}: {response.text} ({response.status_code} {response.reason_phrase})")
 	
-	async def update_mbartist_customization(self, id:int, artist:MbArtistDetais) -> None:
+	@staticmethod
+	async def post_simple_artist_alias(artist_id: int, name: str, franchise_id: int) -> None:
+		endpoint = f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.SIMPLE_ARTIST_ALIAS_API_ENDPOINT}"
+		
+		data = {
+			"Name": name,
+			"artistid": artist_id,
+			"franchiseid": franchise_id
+		}
+		
+		async with httpx.AsyncClient() as client:
+			response = await client.post(endpoint, json=data)
+			
+			if response.is_success:
+				return
+			
+			match response.status_code:
+				case 409:
+					raise Exception(f"Alias with name {name} already exists in DB: {response.text} ({response.status_code} {response.reason_phrase})")
+				case _:
+					raise Exception(f"Failed to create alias for name {name}: {response.text} ({response.status_code} {response.reason_phrase})")
+
+	@staticmethod
+	async def update_mbartist(self, id:int, artist:MbArtistDetails) -> None:
 		endpoint = f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.MBARTIST_API_ENDPOINT}/id"
 
 		data = {
@@ -279,10 +508,30 @@ class TrackManager:
 			
 			match response.status_code:
 				case 404:
-					# TODO: Add some nicer error handler when trying to update an artist that doesn't exist
-					raise Exception(f"Failed to update artist data for MBID {artist.mbid}: {response.text} ({response.status_code} {response.reason_phrase})")
+					raise Exception(f"Could not find artist with MBID {artist.mbid}: {response.text} ({response.status_code} {response.reason_phrase})")
 				case _:
 					raise Exception(f"Failed to update artist data for MBID {artist.mbid}: {response.text} ({response.status_code} {response.reason_phrase})")
+
+	@staticmethod
+	async def update_simple_artist(self, id:int, artist:MbArtistDetails) -> None:
+		endpoint = f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.SIMPLE_ARTIST_API_ENDPOINT}/id"
+
+		data = {
+			"Name": artist.custom_name
+		}
+
+		async with httpx.AsyncClient() as client:
+			response = await client.put(f"{endpoint}/{id}", json=data)
+
+			if response.is_success:
+				return
+			
+			match response.status_code:
+				case 404:
+					raise Exception(f"Could not find artist with MBID {artist.id}: {response.text} ({response.status_code} {response.reason_phrase})")
+				case _:
+					raise Exception(f"Failed to update artist data for MBID {artist.mbid}: {response.text} ({response.status_code} {response.reason_phrase})")
+
 
 async def seedData() -> None:
 	data = {
@@ -291,18 +540,85 @@ async def seedData() -> None:
     "OriginalName": "ClariS-Original-Changed",
     "Include": True
 	}
-	await send_post_request(data)
+	await send_post_request(data, "http://localhost:23409/api/mbartist")
 
-async def send_post_request(data) -> None:
+	data = {
+    "Name": "_",
+	}
+	await send_post_request(data, "http://localhost:23409/api/franchise")
+	product_default = await send_get_request(f"http://localhost:23409/api/franchise?name={data["Name"]}")
+
+	data = {
+    "Name": "TestFranchise1",
+	}
+	await send_post_request(data, "http://localhost:23409/api/franchise")
+	product_testfranchise1 = await send_get_request(f"http://localhost:23409/api/franchise?name={data["Name"]}")
+
+	data = {
+    "Name": "TestFranchise2",
+	}
+	await send_post_request(data, "http://localhost:23409/api/franchise")
+	product_testfranchise2 = await send_get_request(f"http://localhost:23409/api/franchise?name={data["Name"]}")
+
+	data = {
+    "Name": "idolmaster",
+	}
+	await send_post_request(data, "http://localhost:23409/api/franchise")
+	product_idolmasterproduct = await send_get_request(f"http://localhost:23409/api/franchise?name={data["Name"]}")
+
+	data = {
+    "Name": "sandorionSERVER",
+	}
+
+	await send_post_request(data, "http://localhost:23409/api/artist")
+	artist_sandrion = await send_get_request(f"http://localhost:23409/api/artist?name={data["Name"]}")
+
+	data = {
+    "artistId": artist_sandrion["id"],
+    "Name": "サンドリオン",
+    "franchiseId": product_default["id"],
+	}
+	artist_sandrionimas = await send_post_request(data, "http://localhost:23409/api/alias")
+
+
+	data = {
+    "Name": "sandorionSERVERIMAS",
+	}
+
+	await send_post_request(data, "http://localhost:23409/api/artist")
+	artist_sandrionimas = await send_get_request(f"http://localhost:23409/api/artist?name={data["Name"]}")
+
+
+	data = {
+    "artistId": artist_sandrionimas["id"],
+    "Name": "サンドリオン",
+    "franchiseId": product_idolmasterproduct["id"],
+	}
+	artist_sandrionimas = await send_post_request(data, "http://localhost:23409/api/alias")
+
+
+async def send_post_request(data, url) -> None:
 	async with httpx.AsyncClient() as client:
-		response = await client.post("http://localhost:23409/api/mbartist", json=data)
+		response = await client.post(url, json=data)
+		print('url:', url)
 		print('Status Code:', response.status_code)
 		print('Response:', response.text)
 
+async def send_get_request(url) -> None:
+	async with httpx.AsyncClient() as client:
+		response = await client.get(url)
+		print('url:', url)
+		print('Status Code:', response.status_code)
+		print('Response:', response.text)
+		return response.json()[0]
+
+
 async def main() -> None:
-	await seedData()
+	# await seedData()
 	manager = TrackManager()
 	dir = "C:/Users/email_000/Desktop/music/sample/spiceandwolf"
+	dir = "C:/Users/email_000/Desktop/music/sample/nodetailsmultiple"
+	dir = "C:/Users/email_000/Desktop/music/sample/nodetails"
 	await manager.load_directory(dir)
 	await manager.persist_mbartist_customizations()
 	await manager.save_files()

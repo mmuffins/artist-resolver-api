@@ -10,12 +10,14 @@ class TrackManagerGUI:
     # Mapping between columns and source data in format
     data_mapping = {
         "file_path": {"source_object":"track_details", "property":"file_path", "display_name":"File Path", "width":100, "editable":False, "display":False},
+        "update_file": {"source_object":"track_details", "property":"update_file", "display_name":"Update", "width":100, "editable":False, "display":False},
         "title": {"source_object":"track_details", "property":"title", "display_name":"Track Title", "width":100, "editable":False, "display":True},
         "original_title": {"source_object":"track_details", "property":"original_title", "display_name":"Orig Title", "width":100, "editable":False, "display":False},
         "artist": {"source_object":"track_details", "property":"artist", "display_name":"Artist", "width":100, "editable":True, "display":True},
         "artist_sort": {"source_object":"mbartist_details", "property":"sort_name", "display_name":"Sort Artist", "width":100, "editable":False, "display":False},
         "original_artist": {"source_object":"track_details", "property":"original_artist", "display_name":"Orig Artist", "width":100, "editable":False, "display":False},
         "album": {"source_object":"track_details", "property":"album", "display_name":"Album", "width":100, "editable":False, "display":True},
+        "product": {"source_object":"track_details", "property":"product", "display_name":"Product", "width":100, "editable":False, "display":False},
         "original_album": {"source_object":"track_details", "property":"original_album", "display_name":"Orig Album", "width":100, "editable":False, "display":False},
         "album_artist": {"source_object":"track_details", "property":"album_artist", "display_name":"Album Artist", "width":100, "editable":False, "display":False},
         "grouping": {"source_object":"track_details", "property":"grouping", "display_name":"Grouping", "width":100, "editable":False, "display":False},
