@@ -20,7 +20,7 @@
       "console": "integratedTerminal"
     },
     {
-      "name": "Debug Tests",
+      "name": "Debug Unit Tests",
       "type": "debugpy",
       "request": "launch",
       "module": "pytest",
