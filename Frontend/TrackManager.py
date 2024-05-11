@@ -1,4 +1,5 @@
 # TODO: add new columns to live database
+# TODO: Make type editable. Should be a dropdown with Person, Character, Group
 # TODO: deduplicate mbartistdetails list when loading it
 # TODO: check if aliases can be used for better naming predictions
 # TODO: fix that the popup to enter new values is floating in space
@@ -6,6 +7,7 @@
 # TODO: check if data was changed and post changes to DB
 # TODO: move buttons to bottom
 # TODO: make separate table for each song
+# TODO: check if mb_artist_data in trackmanager is needed. It could be easier to just make this array when posting updates to the api
 # TODO: save_file_metadata works already but immediately returns for debugging reasons
 # TODO: Infer album artist from file path
 # TODO: make gui nicer looking
