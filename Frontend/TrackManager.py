@@ -262,8 +262,7 @@ class TrackDetails:
 		return	f"{self.title}"
 		
 	async def read_file_metadata(self) -> None:
-		loop = asyncio.get_event_loop()
-		self.id3 = await loop.run_in_executor(None, lambda: id3.ID3(self.file_path))
+		self.id3 = await self.read_id3_tags(self.file_path)
 		for tag, mapping  in self.tag_mappings.items():
 			value = self.id3.get(tag, [''])[0]
 			setattr(self, mapping["property"], value)
@@ -277,7 +276,10 @@ class TrackDetails:
 			self.has_mbartist_details = True
 		else:
 			self.mbArtistDetails = await self.manager.parse_simple_artist(self)
-		
+	
+	async def read_id3_tags(self, file_path: str):
+		loop = asyncio.get_event_loop()
+		return await loop.run_in_executor(None, lambda: id3.ID3(file_path))
 
 	def save_file_metadata(self) -> None:
 		return
@@ -374,9 +376,9 @@ class TrackManager:
 	async def send_changes_to_db(self) -> None:
 		for artist in self.mb_artist_data.values():
 			if isinstance(artist, SimpleArtistDetails):
-				TrackManager.send_simple_artist_changes_to_db(None, artist)
+				await TrackManager.send_simple_artist_changes_to_db(None, artist)
 			else:
-				TrackManager.send_mbartist_changes_to_db(None, artist)
+				await TrackManager.send_mbartist_changes_to_db(None, artist)
 
 
 	@staticmethod
@@ -390,7 +392,7 @@ class TrackManager:
 	@staticmethod
 	async def send_simple_artist_changes_to_db(track: TrackDetails, artist: SimpleArtistDetails) -> None:
 		postedArtist = await TrackManager.post_simple_artist(artist)
-		postedAlias = TrackManager.post_simple_artist_alias(postedArtist.id, artist.custom_name, )
+		postedAlias = TrackManager.post_simple_artist_alias(postedArtist.id, artist.custom_name, artist.product_id)
 	
 	@staticmethod
 	async def get_mbartist(mbid:str) -> dict:
@@ -668,8 +670,9 @@ async def main() -> None:
 	# await seedData()
 	manager = TrackManager()
 	dir = "C:/Users/email_000/Desktop/music/sample/nodetailsmultiple"
-	dir = "C:/Users/email_000/Desktop/music/sample/spiceandwolf"
 	dir = "C:/Users/email_000/Desktop/music/sample/nodetails"
+	dir = "C:/Users/email_000/Desktop/music/sample/spiceandwolf"
+	dir = "C:/Users/email_000/Desktop/music/"
 	await manager.load_directory(dir)
 	await manager.send_changes_to_db()
 	await manager.save_files()
