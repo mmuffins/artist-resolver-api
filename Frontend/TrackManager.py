@@ -8,7 +8,6 @@
 # TODO: check if data was changed and post changes to DB
 # TODO: move buttons to bottom
 # TODO: make separate table for each song
-# TODO: check if mb_artist_data in trackmanager is needed. It could be easier to just make this array when posting updates to the api
 # TODO: save_file_metadata works already but immediately returns for debugging reasons
 # TODO: Infer album artist from file path
 # TODO: make gui nicer looking
@@ -124,7 +123,6 @@ class MbArtistDetails:
 			MbArtistDetails.from_dict(item, track_list)
 		return track_list
 	
-
 class SimpleArtistDetails(MbArtistDetails):
 	def __init__(self, name: str, type: str, disambiguation: str, sort_name: str, id: str, aliases: List[Alias], type_id: str, joinphrase: Optional[str], include: bool = True, product: str = "", product_id: str = ""):
 		super().__init__(name, type, disambiguation, sort_name, id, aliases, type_id, joinphrase, include)
@@ -251,8 +249,8 @@ class TrackDetails:
 		self.original_album = None
 		self.original_artist = None
 		self.original_title = None
-		self.has_mbartist_details: bool = False
 		self.product = None
+		self.artist_relations = None
 		self.update_file: bool = True
 		
 	def __str__(self):
@@ -262,26 +260,46 @@ class TrackDetails:
 		return	f"{self.title}"
 		
 	async def read_file_metadata(self) -> None:
-		self.id3 = await self.read_id3_tags(self.file_path)
+		"""
+		Reads mp3 tags from a file
+		"""
+
+		self.id3 = await self.get_id3_object(self.file_path)
 		for tag, mapping  in self.tag_mappings.items():
 			value = self.id3.get(tag, [''])[0]
 			setattr(self, mapping["property"], value)
 
 		# the artist_relations array is not a specific ID3 tag but is stored as text in the general purpose TXXX frame
+		dd = self.id3.getall("TXXX")
 		artist_relations_frame = next((frame for frame in self.id3.getall("TXXX") if frame.desc == 'artist_relations_json'), None)
-		
 		if artist_relations_frame:
-			artist_relations = artist_relations_frame.text[0]
-			self.mbArtistDetails = await self.manager.parse_mbartist_json(artist_relations)
-			self.has_mbartist_details = True
+			self.artist_relations = artist_relations_frame.text[0]
+
+		await self.create_artist_objects()
+	
+	async def create_artist_objects (self) -> None:
+		"""
+		Creates individual artist objects from id3 tags of the file
+		"""
+
+		if self.artist_relations:
+			self.mbArtistDetails = self.manager.parse_mbartist_json(self.artist_relations)
 		else:
 			self.mbArtistDetails = await self.manager.parse_simple_artist(self)
-	
-	async def read_id3_tags(self, file_path: str):
+
+	async def get_id3_object(self, file_path: str):
+		"""
+		Creates object for a file used to read from a file. Moved to separate function to make testing easier
+		"""
+
 		loop = asyncio.get_event_loop()
 		return await loop.run_in_executor(None, lambda: id3.ID3(file_path))
 
 	def save_file_metadata(self) -> None:
+		"""
+		Writes changed id3 tags back to the filesystem
+		"""
+
 		return
 		file_changed: bool = False
 
@@ -314,14 +332,20 @@ class TrackManager:
 
 	def __init__(self):
 		self.tracks: list[TrackDetails] = []
-		self.mb_artist_data: dict[MbArtistDetails] = {}
+		self.artist_data: dict[MbArtistDetails] = {}
 
 	async def load_directory(self, directory: str) -> None:
+		"""
+		Gets all mp3 files in a directory and reads their id3 tags
+		"""
 		self.directory = directory
 		self.get_mp3_files()
 		await self.read_file_metadata()
 
 	def get_mp3_files(self) -> None:
+		"""
+		Recursively gets a list of all mp3 files in the provided folder
+		"""
 		for root, dirs, files in os.walk(self.directory):
 			for file in files:
 				if file.endswith(".mp3"):
@@ -329,13 +353,57 @@ class TrackManager:
 					self.tracks.append(TrackDetails(file_path, self))
 	
 	async def save_files(self) -> None:
+		"""
+		Saves changed id3 tags for all files in the local tracks list
+		"""
+
 		loop = asyncio.get_event_loop()
 		await asyncio.gather(*(loop.run_in_executor(None, track.save_file_metadata) for track in self.tracks))
 
 	async def read_file_metadata(self) -> None:
+		"""
+		Reads ID3 tags for all files in the local tracks list
+		"""
 		await asyncio.gather(*(track.read_file_metadata() for track in self.tracks))
 
+	async def update_artists_info_from_db(self) -> None:
+		"""
+		Update artist information from the database for all artists
+    in the local artist_data list
+		"""
+
+		for artist in self.artist_data.values():
+			if isinstance(artist, SimpleArtistDetails):
+				await TrackManager.update_simple_artist_from_db(artist)
+			else:
+				await TrackManager.update_mbartist_from_db(artist)
+
+	@staticmethod
+	async def update_simple_artist_from_db(artist: SimpleArtistDetails) -> None:
+		"""
+    Loads customized artist and alias data for a simple artist from the database.
+		"""
+
+		alias = await TrackManager.get_simple_artist_alias(artist.name, artist.product_id)
+		if alias:
+			artist.update_from_simple_artist_dict(alias[0])
+
+	@staticmethod
+	async def update_mbartist_from_db(artist: MbArtistDetails) -> None:
+		"""
+    Loads customized artist data for an mb artist from the database.
+		"""
+
+		mb_artist_details = await TrackManager.get_mbartist(artist.mbid)
+		if mb_artist_details:
+			artist.update_from_customization(mb_artist_details)
+
+
 	async def parse_simple_artist(self, track: TrackDetails) -> list[SimpleArtistDetails]:
+		"""
+    Reads track data to create a list of artist details, pushes it to the local artist_data list
+		"""
+
 		if not hasattr(self, 'db_products') or not self.db_products:
 			self.db_products = await TrackManager.list_simple_artist_franchise()
 		
@@ -346,35 +414,35 @@ class TrackManager:
 		artist_details = SimpleArtistDetails.parse_simple_artist(track.artist, product["name"], product["id"])
 
 		for artist in artist_details:
-			if artist.mbid not in self.mb_artist_data:
-				self.mb_artist_data[artist.mbid] = artist
+			if artist.mbid not in self.artist_data:
+				self.artist_data[artist.mbid] = artist
 
-			alias = await TrackManager.get_simple_artist_alias(artist.name, artist.product_id)
-			if alias:
-				artist.update_from_simple_artist_dict(alias[0])
-
-			returnObj.append(self.mb_artist_data[artist.mbid])
+			returnObj.append(self.artist_data[artist.mbid])
 
 		return returnObj
 	
+	def parse_mbartist_json(self, artist_relations_json: str) -> list[MbArtistDetails]:
+		"""
+    Reads track data to create a list of artist details, pushes it to the local artist_data list
+		"""
 
-	async def parse_mbartist_json(self, artist_relations_json: str) -> list[MbArtistDetails]:
 		artist_details = MbArtistDetails.parse_json(artist_relations_json)
 		returnObj: List[MbArtistDetails] = []
 		for artist in artist_details:
-			if artist.mbid not in self.mb_artist_data:
-				self.mb_artist_data[artist.mbid] = artist
+			if artist.mbid not in self.artist_data:
+				self.artist_data[artist.mbid] = artist
 
-				mb_artist_details = await TrackManager.get_mbartist(artist.mbid)
-				if mb_artist_details:
-					artist.update_from_customization(mb_artist_details)
-
-			returnObj.append(self.mb_artist_data[artist.mbid])
+			returnObj.append(self.artist_data[artist.mbid])
 
 		return returnObj
 
 	async def send_changes_to_db(self) -> None:
-		for artist in self.mb_artist_data.values():
+		"""
+    Sends changes for all artists in the local artist_data list to the db
+		"""
+
+		raise NotImplementedError()
+		for artist in self.artist_data.values():
 			if isinstance(artist, SimpleArtistDetails):
 				await TrackManager.send_simple_artist_changes_to_db(None, artist)
 			else:
@@ -383,6 +451,10 @@ class TrackManager:
 
 	@staticmethod
 	async def send_mbartist_changes_to_db(track: TrackDetails, artist: MbArtistDetails) -> None:
+		"""
+    Sends changes for mb artist artist_data list to the db
+		"""
+
 		customization = await TrackManager.get_mbartist(artist.mbid)
 		if (None == customization):
 			await TrackManager.post_mbartist(artist)
@@ -391,13 +463,21 @@ class TrackManager:
 
 	@staticmethod
 	async def send_simple_artist_changes_to_db(track: TrackDetails, artist: SimpleArtistDetails) -> None:
+		"""
+    Sends changes for simple artist artist_data list to the db
+		"""
+
 		postedArtist = await TrackManager.post_simple_artist(artist)
 		postedAlias = TrackManager.post_simple_artist_alias(postedArtist.id, artist.custom_name, artist.product_id)
 	
 	@staticmethod
 	async def get_mbartist(mbid:str) -> dict:
+		"""
+    Gets mb artist from the database
+		"""
+
 		async with httpx.AsyncClient() as client:
-			response = await client.get(f"http://localhost:23409/api/mbartist/mbid/{mbid}")
+			response = await client.get(f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.MBARTIST_API_ENDPOINT}/mbid/{mbid}")
 			
 			match response.status_code:
 				case 200:
@@ -410,6 +490,10 @@ class TrackManager:
 
 	@staticmethod
 	async def list_simple_artist_franchise() -> dict:
+		"""
+    Gets list of all franchise/product items from the db
+		"""
+
 		endpoint = f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.SIMPLE_ARTIST_FRANCHISE_API_ENDPOINT}"
 
 		async with httpx.AsyncClient() as client:
@@ -421,6 +505,10 @@ class TrackManager:
 
 	@staticmethod
 	async def get_simple_artist_franchise(name: str = None) -> dict:
+		"""
+    Gets franchise/artist from the db
+		"""
+
 		endpoint = f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.SIMPLE_ARTIST_FRANCHISE_API_ENDPOINT}"
 
 		if not name:
@@ -435,6 +523,10 @@ class TrackManager:
 
 	@staticmethod
 	async def get_simple_artist(self, id:int, name:str) -> dict:
+		"""
+    Gets details for a simple artist from the database
+		"""
+
 		endpoint = f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.SIMPLE_ARTIST_API_ENDPOINT}?"
 		params = {}
 
@@ -457,6 +549,10 @@ class TrackManager:
 	
 	@staticmethod
 	async def get_simple_artist_alias(name: str = None, franchiseId: int = None) -> dict:
+		"""
+    Gets all aliases of a simple artist from the db
+		"""
+
 		endpoint = f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.SIMPLE_ARTIST_ALIAS_API_ENDPOINT}"
 		params = {}
 
@@ -479,6 +575,10 @@ class TrackManager:
 
 	@staticmethod
 	async def post_mbartist(self, artist:MbArtistDetails) -> None:
+		"""
+    Creates a new mb artist in the db from an artist details object
+		"""
+		
 		endpoint = f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.MBARTIST_API_ENDPOINT}"
 
 		data = {
@@ -502,6 +602,10 @@ class TrackManager:
 	
 	@staticmethod
 	async def post_simple_artist(self, artist:SimpleArtistDetails) -> None:
+		"""
+    Creates a new simple artist in the db from an artist details object
+		"""
+
 		endpoint = f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.SIMPLE_ARTIST_API_ENDPOINT}"
 
 		data = {
@@ -522,6 +626,10 @@ class TrackManager:
 	
 	@staticmethod
 	async def post_simple_artist_alias(artist_id: int, name: str, franchise_id: int) -> None:
+		"""
+    Creates a new alias for a simple artist in the db
+		"""
+
 		endpoint = f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.SIMPLE_ARTIST_ALIAS_API_ENDPOINT}"
 		
 		data = {
@@ -544,6 +652,10 @@ class TrackManager:
 
 	@staticmethod
 	async def update_mbartist(self, id:int, artist:MbArtistDetails) -> None:
+		"""
+		Updates the db record of a mb artist
+		"""
+
 		endpoint = f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.MBARTIST_API_ENDPOINT}/id"
 
 		data = {
@@ -567,6 +679,10 @@ class TrackManager:
 
 	@staticmethod
 	async def update_simple_artist(self, id:int, artist:SimpleArtistDetails) -> None:
+		"""
+		Updates the db record of a simple artist
+		"""
+
 		endpoint = f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.SIMPLE_ARTIST_API_ENDPOINT}/id"
 
 		data = {
@@ -672,8 +788,8 @@ async def main() -> None:
 	dir = "C:/Users/email_000/Desktop/music/sample/nodetailsmultiple"
 	dir = "C:/Users/email_000/Desktop/music/sample/nodetails"
 	dir = "C:/Users/email_000/Desktop/music/sample/spiceandwolf"
-	dir = "C:/Users/email_000/Desktop/music/"
 	await manager.load_directory(dir)
+	await manager.update_artists_info_from_db()
 	await manager.send_changes_to_db()
 	await manager.save_files()
 
