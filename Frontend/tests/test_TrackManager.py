@@ -1,20 +1,55 @@
 import pytest
 import httpx
+import respx
+import json
 import asyncio
 from unittest.mock import AsyncMock, patch, MagicMock
 from TrackManager import TrackManager, MbArtistDetails, TrackManager, TrackDetails
 
-# @pytest.fixture
-# def manager():
-#     return TrackManager()
+@pytest.fixture
+def mock_id3_instance(mocker):
+    """
+    Fixture that returns a mocked mutagen id3 instance
+    """
+
+    mocked_id3 = mocker.patch('mutagen.id3.ID3', autospec=True)
+    mock_id3_instance = MagicMock()
+    mocked_id3.return_value = mock_id3_instance
+    # Mock the main get_id3_object call to get a dummy object
+    mocker.patch('TrackManager.TrackDetails.get_id3_object', return_value=mock_id3_instance)
+    return mock_id3_instance
+
+@pytest.fixture
+def reference_track():
+    """
+    Returns a track details object with default values
+    """
+    track = TrackDetails("/fake/path/file1.mp3", TrackManager())
+    track.title = "test title"
+    track.artist = "test artist1"
+    track.album = "test album"
+    track.album_artist = "test album_artist"
+    track.grouping = "test grouping"
+    track.original_album = "test original_album"
+    track.original_artist = "test original_artist"
+    track.original_title = "test original_title"
+    track.product = "test product"
+    track.artist_relations = "test artist_relations"
+    
+    return track
 
 def create_mock_txxx(description, text):
-  mock_txxx = MagicMock()
-  mock_txxx.FrameID = 'TXXX'
-  mock_txxx.HashKey = f'TXXX:{description}'
-  mock_txxx.desc = description
-  mock_txxx.text = text
-  return mock_txxx
+    """
+    Returns a mocked id3 frame
+    """
+
+    mock_txxx = MagicMock()
+    mock_txxx.FrameID = 'TXXX'
+    mock_txxx.HashKey = f'TXXX:{description}'
+    mock_txxx.desc = description
+    mock_txxx.text = text
+    return mock_txxx
+
 
 @pytest.mark.asyncio  
 async def test_trackmanager_load_directory(mocker):
@@ -41,112 +76,131 @@ async def test_trackmanager_load_directory(mocker):
     assert any(track.file_path == "/fake/directory/dir4\\file1.mp3" for track in manager.tracks)
     assert any(track.file_path == "/fake/directory/dir4\\file2.mp3" for track in manager.tracks)
 
-@pytest.mark.asyncio  
-async def test_trackdetails_read_file_metadata(mocker):
-    # Arrange
-    # Mock os.walk to simulate directory traversal
-    test_directory = "/fake/dir"
-    mocker.patch('os.walk', return_value=[
-        (test_directory, (), ['file1.mp3']),
-    ])
-
-    # Mock ID3 to simulate metadata extraction
-    mocked_id3 = mocker.patch('mutagen.id3.ID3', autospec=True)
-    mock_id3_instance = MagicMock()
-    mocked_id3.return_value = mock_id3_instance
+@pytest.mark.asyncio
+@respx.mock(assert_all_mocked=True)
+async def test_load_mbartist_track_file(respx_mock, mock_id3_instance, reference_track):
+    # Arrange1
+    reference_track.product = None
 
     # individual id3 calls
-
     def id3_get_side_effect(tag, default):
         responses = {
-            "TIT2": ["Test Title"],
-            "TPE1": ["Test Artist"],
-            "TALB": ["album"],
-            "TPE2": ["album_artist"],
-            "TIT1": ["grouping"],
-            "TOAL": ["original_album"],
-            "TOPE": ["original_artist"],
-            "TPE3": ["original_title"],
+            "TIT2": [reference_track.title],
+            "TPE1": [reference_track.artist],
+            "TALB": [reference_track.album],
+            "TPE2": [reference_track.album_artist],
+            "TIT1": [reference_track.grouping],
+            "TOAL": [reference_track.original_album],
+            "TOPE": [reference_track.original_artist],
+            "TPE3": [reference_track.original_title],
         }
         return responses.get(tag, default)
     mock_id3_instance.get.side_effect = id3_get_side_effect
     
+    mbid = "mock-93fb-4bc3-8ff9-065c75c4f90a"
     # id3 call for id3.getall("TXXX")
     mock_artist_relations = create_mock_txxx(
-      description='artist_relations_json',
-      text=['[{"name": "ClariS", "type": "Group", "disambiguation": "J-Pop", "sort_name": "ClariS", "id": "f3688ad9-cd14-4cee-8fa0-0f4434e762bb", "aliases": [{"sort-name": "クラリス", "begin": "2010-09-10", "name": "ClariS", "end": null, "primary": true, "type": "Artist name", "locale": "ja", "ended": false, "type-id": "894afba6-2816-3c24-8072-eadb66bd04bc"}, {"locale": null, "type": "Search hint", "type-id": "1937e404-b981-3cb7-8151-4c86ebfc8d8e", "ended": false, "name": "アリス★クララ", "sort-name": "アリス★クララ", "begin": null, "end": null, "primary": null}, {"begin": "2009-10-10", "sort-name": "アリス☆クララ", "name": "アリス☆クララ", "primary": false, "end": "2010-09-10", "type": "Artist name", "locale": "ja", "ended": true, "type-id": "894afba6-2816-3c24-8072-eadb66bd04bc"}], "type_id": "e431f5f6-b5d2-343d-8b36-72607fffb74b", "relations": [{"name": "アリス", "type": "Person", "disambiguation": "ClariS", "sort_name": "Alice", "id": "9a542279-446a-457b-9a19-65a24e7da35b", "aliases": [], "type_id": "b6e035f4-3ce9-331c-97df-83397230b0df", "relations": []}, {"name": "カレン", "type": "Person", "disambiguation": "ClariS", "sort_name": "Karen", "id": "97b0f78f-dbdb-435d-b0f6-b386b46c0c91", "aliases": [], "type_id": "b6e035f4-3ce9-331c-97df-83397230b0df", "relations": []}, {"name": "アリス", "type": "Person", "disambiguation": "ClariS", "sort_name": "Alice", "id": "9a542279-446a-457b-9a19-65a24e7da35b", "aliases": [], "type_id": "b6e035f4-3ce9-331c-97df-83397230b0df", "relations": []}, {"name": "クララ", "type": "Person", "disambiguation": "ClariS", "sort_name": "Clara", "id": "5c66d927-bb54-4de0-a498-175bfe84acf8", "aliases": [], "type_id": "b6e035f4-3ce9-331c-97df-83397230b0df", "relations": []}, {"name": "クララ", "type": "Person", "disambiguation": "ClariS", "sort_name": "Clara", "id": "5c66d927-bb54-4de0-a498-175bfe84acf8", "aliases": [], "type_id": "b6e035f4-3ce9-331c-97df-83397230b0df", "relations": []}], "joinphrase": ""}]']
+        description='artist_relations_json',
+        text=[json.dumps([{
+            "name": "あえ木八",
+            "type": "Person",
+            "type": "Person", 
+            "disambiguation": "", 
+            "sort_name": "Lastname, Firstname", 
+            "id": mbid, 
+            "aliases": [], 
+            "type_id": "b6e035f4-3ce9-331c-97df-83397230b0df", 
+            "relations": [], 
+            "joinphrase": ""
+        }])]
     )
     mock_id3_instance.getall.return_value = [mock_artist_relations] 
 
-    # Mock the main read_id3_tags call to get a dummy object
-    mocker.patch('TrackManager.TrackDetails.read_id3_tags', return_value=mock_id3_instance)
+    # Mocking the 404 response for a specific MBID
+    # respx_mock.get(f"/mbartist/mbid/{mbid}").mock(
+    #     return_value=httpx.Response(200, json={'id': 1, 'mbId': 'f3688ad9-cd14-4cee-8fa0-0f4434e762bb', 'name': 'ClariS-Changed', 'originalName': 'ClariS-Original-Changed', 'include': True})
+    # )
+    # respx_mock.route(
+    #     method="GET", 
+    #     port__in=[23409], 
+    #     host="localhost", 
+    #     path=f"/api/mbartist/mbid/{mbid}"
+    # ).mock(return_value=httpx.Response(404))
 
-
-
+    # Add a catch-all for everything that's not explicitly routed
+    # respx_mock.route().respond(404)
+    
     # Act
     manager = TrackManager()
-    # asyncio.run(manager.load_directory(test_directory))
     track = TrackDetails("/fake/path/file1.mp3", manager)
     await track.read_file_metadata()
 
+    # Assert
+    assert track.title == reference_track.title
+    assert track.artist == reference_track.artist
+    assert track.album == reference_track.album
+    assert track.album_artist == reference_track.album_artist
+    assert track.grouping == reference_track.grouping
+    assert track.original_album == reference_track.original_album
+    assert track.original_artist == reference_track.original_artist
+    assert track.original_title == reference_track.original_title
+    assert track.product == reference_track.product
 
-    # Check that the tracks list is populated as expected
-    assert len(manager.tracks) == 2
-    assert manager.tracks[0].artist == "Test Artist"
-    assert all(isinstance(track, TrackDetails) for track in manager.tracks)
+@pytest.mark.asyncio
+@respx.mock(assert_all_mocked=True)
+async def test_load_simple_artist_track_file(respx_mock, mock_id3_instance, reference_track):
+    # Arrange
+    reference_track.product = "_"
 
-    # Optionally, check if the correct metadata tags were accessed
-    mock_id3_instance.get.assert_any_call('TPE1', [''])
+    # individual id3 calls
+    def id3_get_side_effect(tag, default):
+        responses = {
+            "TIT2": [reference_track.title],
+            "TPE1": [reference_track.artist],
+            "TALB": [reference_track.album],
+            "TPE2": [reference_track.album_artist],
+            "TIT1": [reference_track.grouping],
+            "TOAL": [reference_track.original_album],
+            "TOPE": [reference_track.original_artist],
+            "TPE3": [reference_track.original_title],
+        }
+        return responses.get(tag, default)
+    mock_id3_instance.get.side_effect = id3_get_side_effect
+    
+    # id3.getall("TXXX") returns an empty array to trigger creating simple artist
+    mock_id3_instance.getall.return_value = []
 
-# @pytest.mark.asyncio
-# async def test_get_mbartist_customization_success(manager, mocker):
-#   # Make sure that 'manager' is an instance of TrackManager and not a coroutine
-#   assert isinstance(manager, TrackManager)  # This line is just for debugging
+    # mock franchise api needed by properly create simple artist objects
+    respx_mock.route(
+        method="GET", 
+        port__in=[23409], 
+        host="localhost", 
+        path="/api/franchise"
+    ).mock(return_value=httpx.Response(
+        200, json=[
+            {'id': 1, 'name': '_', 'aliases': []}, 
+            {'id': 2, 'name': 'TestFranchise1', 'aliases': []}, 
+            {'id': 3, 'name': 'TestFranchise2', 'aliases': []}, 
+            {'id': 4, 'name': 'TestFranchise3', 'aliases': []}
+        ]
+    ))
 
-#   # Create a mock for the AsyncClient.get method
-#   mock_get = AsyncMock(return_value=httpx.Response(status_code=200, json={
-#     'id': 1,
-#     'mbId': 'd6d7e9a4-df91-4bd7-ae96-f56bc98f0db1',
-#     'name': 'Chika Takami',
-#     'originalName': '高海千歌',
-#     'include': True
-#   }))
-1#   mocker.patch('httpx.AsyncClient.get', mock_get)
-  
-#   # Test the function
-#   response = await manager.get_mbartist_customization('d6d7e9a4-df91-4bd7-ae96-f56bc98f0db1')
-#   assert response is not None
-#   assert response['mbId'] == 'd6d7e9a4-df91-4bd7-ae96-f56bc98f0db1'
-#   assert response['name'] == 'Chika Takami'
-#   assert mock_get.called
-#   assert isinstance(manager, TrackManager)
-#   # Create a mock for the AsyncClient.get method
-#   mock_get = AsyncMock(return_value=httpx.Response(status_code=200, json={'id': 1, 'mbId': 'd6d7e9a4-df91-4bd7-ae96-f56bc98f0db1', 'name': 'Chika Takami', 'originalName': '高海千歌', 'include': True}))
-#   mocker.patch('httpx.AsyncClient.get', mock_get)
-  
-#   # Test the function
-#   response = await manager.get_mbartist_customization('d6d7e9a4-df91-4bd7-ae96-f56bc98f0db1')
-#   assert response is not None
-#   assert response['mbId'] == 'd6d7e9a4-df91-4bd7-ae96-f56bc98f0db1'
-#   assert response['name'] == 'Chika Takami'
-#   assert mock_get.called
+    # Add a catch-all for everything that's not explicitly routed
+    # respx_mock.route().respond(504, text="Route was not mocked")
+    
+    # Act
+    manager = TrackManager()
+    track = TrackDetails("/fake/path/file1.mp3", manager)
+    await track.read_file_metadata()
 
-# @pytest.mark.asyncio
-# async def test_get_mbartist_customization_not_found(manager, mocker):
-#   # Create a mock for the AsyncClient.get method that simulates a 404 error
-#   mock_get = AsyncMock(return_value=httpx.Response(status_code=404))
-#   mocker.patch('httpx.AsyncClient.get', mock_get)
-  
-#   # Test the function
-#   response = await manager.get_mbartist_customization('eef388ad9-cd14-4cee-8fa0-invalid')
-#   assert response is None  # Depending on your implementation, you might check the handling of this case
-#   assert mock_get.called
+    # Assert
+    assert track.title == reference_track.title
+    assert track.artist == reference_track.artist
+    assert track.album == reference_track.album
+    assert track.album_artist == reference_track.album_artist
+    assert track.grouping == reference_track.grouping
+    assert track.original_album == reference_track.original_album
+    assert track.original_artist == reference_track.original_artist
+    assert track.original_title == reference_track.original_title
+    assert track.product == reference_track.product
 
-# @pytest.mark.asyncio
-# async def test_get_mbartist_customization_connection_error(manager, mocker):
-#   # Create a mock for the AsyncClient.get method that simulates a connection error
-#   mocker.patch('httpx.AsyncClient.get', side_effect=httpx.ConnectError)
-  
-#   # Test the function
-#   with pytest.raises(httpx.ConnectError):
-#     await manager.get_mbartist_customization('d6d7e9a4-df91-4bd7-ae96-f56bc98f0db1')
