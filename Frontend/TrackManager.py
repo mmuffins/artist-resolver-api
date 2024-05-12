@@ -1,6 +1,6 @@
 # TODO: add new columns to live database
 # TODO: Make type editable. Should be a dropdown with Person, Character, Group
-# TODO: deduplicate mbartistdetails list in gridview when loading it
+# TODO: deduplicate simple artist if an track artist accidently contains artist multiple times
 # TODO: add checks for existing data when posting/updating to db
 # TODO: check if aliases can be used for better naming predictions
 # TODO: fix that the popup to enter new values is floating in space
@@ -14,6 +14,7 @@
 # TODO: colors -> grey out rows where included is disabled
 # TODO: colors -> have specific color for values loaded from the db
 # TODO: colors -> highlight colors that are different from the current id tag / were edited
+# TODO: include relation type in original artist_json from picard to be able to filter out sibling relation type
 
 # simple 1: artist and alias does not exist on server
 # simple 2: artist / alias exist on server and is equal to local data
@@ -98,9 +99,10 @@ class MbArtistDetails:
 		self.id = data['artistId']
 
 	@classmethod
-	def from_dict(cls, data: dict, track_list: List['MbArtistDetails']):
+	def from_dict(cls, data: dict, artist_list: list['MbArtistDetails']):
 		aliases = [Alias.from_dict(alias) for alias in data.get("aliases", [])]
-		track = cls(
+		
+		artist = cls(
 			name=data.get("name"),
 			type=data.get("type"),
 			disambiguation=data.get("disambiguation"),
@@ -110,18 +112,22 @@ class MbArtistDetails:
 			type_id=data.get("type_id"),
 			joinphrase=data.get("joinphrase", "")
 		)
-		track_list.append(track)
-		# Handle nested relations by flattening them
+
+		if not any(a.mbid == artist.mbid for a in artist_list):
+			artist_list.append(artist)
+
+		# Flatten nested artists
 		for relation in data.get("relations", []):
-			cls.from_dict(relation, track_list)
+			cls.from_dict(relation, artist_list)
 
 	@staticmethod
-	def parse_json(json_str: str) -> List['MbArtistDetails']:
+	def parse_json(json_str: str) -> list['MbArtistDetails']:
 		data = json.loads(json_str)
-		track_list: List['MbArtistDetails'] = []
+		artist_list: list[MbArtistDetails] = []
 		for item in data:
-			MbArtistDetails.from_dict(item, track_list)
-		return track_list
+			MbArtistDetails.from_dict(item, artist_list)
+
+		return artist_list
 	
 class SimpleArtistDetails(MbArtistDetails):
 	def __init__(self, name: str, type: str, disambiguation: str, sort_name: str, id: str, aliases: List[Alias], type_id: str, joinphrase: Optional[str], include: bool = True, product: str = "", product_id: str = ""):
@@ -270,7 +276,6 @@ class TrackDetails:
 			setattr(self, mapping["property"], value)
 
 		# the artist_relations array is not a specific ID3 tag but is stored as text in the general purpose TXXX frame
-		dd = self.id3.getall("TXXX")
 		artist_relations_frame = next((frame for frame in self.id3.getall("TXXX") if frame.desc == 'artist_relations_json'), None)
 		if artist_relations_frame:
 			self.artist_relations = artist_relations_frame.text[0]
@@ -788,6 +793,7 @@ async def main() -> None:
 	dir = "C:/Users/email_000/Desktop/music/sample/nodetailsmultiple"
 	dir = "C:/Users/email_000/Desktop/music/sample/nodetails"
 	dir = "C:/Users/email_000/Desktop/music/sample/spiceandwolf"
+	dir = "C:/Users/email_000/Desktop/music/sample/detailsmultiple"
 	await manager.load_directory(dir)
 	await manager.update_artists_info_from_db()
 	await manager.send_changes_to_db()
