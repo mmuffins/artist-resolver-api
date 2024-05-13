@@ -161,24 +161,15 @@ class SimpleArtistDetails(MbArtistDetails):
 		return simple_artist_list
 
 	@classmethod
-	def from_simple_artist(cls, artist: str, product: str, product_id: int):
+	def from_simple_artist(cls, artist, product: str, product_id: int):
 		"""
 		Creates artist object
 		"""
 
-		extracedArtist = SimpleArtistDetails.extract_cv_artist(artist)
-		artistType = "Character"
-		artist_include = False
-
-		if(extracedArtist == None):
-			artistType = "Person"
-			extracedArtist = artist
-			artist_include = True
-
 		simple_artist = cls(
-			include = artist_include,
-			name = extracedArtist,
-			type = artistType,
+			include = artist["include"],
+			name = artist["name"],
+			type = artist["type"],
 			disambiguation=None,
 			sort_name=None,
 			aliases=[],
@@ -200,7 +191,6 @@ class SimpleArtistDetails(MbArtistDetails):
 		self.custom_original_name = data['name']
 		self.id = data['artistId']
 
-
 	@staticmethod
 	def split_artist_list(artist):
 		"""
@@ -217,25 +207,16 @@ class SimpleArtistDetails(MbArtistDetails):
 		"""
 
 		regex = re.compile(r'(\s?[\(|（](?:[Cc][Vv][\:|\.|：]?\s?).*[\)|）])')
-		return regex.split(artist)
+		split_artists = regex.split(artist)
 
-	@staticmethod
-	def split_artist(artist):
-		"""
-		Splits artist string into individual artists
-		"""
+		# Clean up the results to remove empty strings and potential leading/trailing whitespace
+		split_artists = [artist.strip() for artist in split_artists if artist.strip()]
 
-		artist_list = SimpleArtistDetails.split_artist_list(artist)
+		# Artists with CV information are usually sorted `Character (CV Voice Actor)`
+		# For better sorting we want to flip that array to get `(CV Voice Actor); Character`
+		split_artists.reverse()
+		return split_artists
 
-		split_list = []
-		for regex_artist in artist_list:
-			# For each component, further split it if it contains (CV xxx)
-			parts = SimpleArtistDetails.split_artist_cv(regex_artist)
-			# Append each part to the final list, removing empty strings
-			split_list.extend([p.strip() for p in parts if p.strip()])
-
-		return split_list
-	
 	@staticmethod
 	def extract_cv_artist(cv_artist: str) -> str:
 		"""
@@ -245,6 +226,39 @@ class SimpleArtistDetails(MbArtistDetails):
 		regex = re.compile(r'\((?:[Cc][Vv][\:|\.|：]?\s?)([^)]+)\)')
 		match = regex.search(cv_artist)
 		return match.group(1) if match else None
+
+	@staticmethod
+	def split_artist(artist):
+		"""
+		Splits artist string into individual artists
+		"""
+		artist_list = SimpleArtistDetails.split_artist_list(artist)
+		split_list = []
+
+		for regex_artist in artist_list:
+			parts = SimpleArtistDetails.split_artist_cv(regex_artist)
+			split_list.extend(SimpleArtistDetails.process_split_artist_parts(parts))
+
+		return split_list
+
+	@staticmethod
+	def process_split_artist_parts(parts):
+		"""
+		Process parts of the artist string, splitting by CV and character types.
+		"""
+		for i in range(len(parts)):
+			parts[i] = {"type": "Person", "include": True, "name": parts[i]}
+
+		if len(parts) > 1:
+			for part in parts:
+				if part["name"].strip().lower().startswith("(cv"):
+					part["name"] = SimpleArtistDetails.extract_cv_artist(part["name"])
+				else:
+					part["type"] = "Character"
+					part["include"] = False
+
+		return parts
+
 
 	@staticmethod
 	def parse_simple_artist_franchise(track_product, track_album_artist, product_list: dict) -> dict:

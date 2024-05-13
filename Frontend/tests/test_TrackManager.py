@@ -5,6 +5,9 @@ import json
 from unittest.mock import AsyncMock, patch, MagicMock
 from TrackManager import TrackManager, MbArtistDetails, TrackManager, TrackDetails
 
+api_port = 23409
+api_host = "localhost"
+
 expected_person3 = {
     "name": "Person3 Lastname",
     "type": "Person",
@@ -212,8 +215,8 @@ async def test_create_track_file_with_artist_json(mock_id3_tags):
     # )
     # respx_mock.route(
     #     method="GET", 
-    #     port__in=[23409], 
-    #     host="localhost", 
+    #     port__in=[api_port], 
+    #     host=api_host, 
     #     path=f"/api/mbartist/mbid/{mbid}"
     # ).mock(return_value=httpx.Response(404))
 
@@ -261,8 +264,8 @@ async def test_create_track_file_without_artist_json(respx_mock, mock_id3_tags):
     # mock franchise api needed by properly create simple artist objects
     respx_mock.route(
         method="GET", 
-        port__in=[23409], 
-        host="localhost", 
+        port__in=[api_port], 
+        host=api_host, 
         path="/api/franchise"
     ).mock(return_value=httpx.Response(
         200, json=[
@@ -326,8 +329,8 @@ async def test_parse_artist_json_with_nested_objects(respx_mock):
     # )
     # respx_mock.route(
     #     method="GET", 
-    #     port__in=[23409], 
-    #     host="localhost", 
+    #     port__in=[api_port], 
+    #     host=api_host, 
     #     path=f"/api/mbartist/mbid/{mbid}"
     # ).mock(return_value=httpx.Response(404))
 
@@ -336,7 +339,6 @@ async def test_parse_artist_json_with_nested_objects(respx_mock):
     
     # Act
     await track.create_artist_objects()
-
 
     # Assert
     assert len(manager.artist_data) == 5, f"Unexpected number of entries in artist_data"
@@ -354,8 +356,49 @@ async def test_parse_artist_json_with_nested_objects(respx_mock):
         # assert artists[i].include == expected[i]["include"]
 
 
-async def test_split_artist_string_into_simple_artist():
-    pass
+@pytest.mark.asyncio
+@respx.mock(assert_all_mocked=True)
+async def test_split_artist_string_into_simple_artist_objects(respx_mock):
+    # Arrange
+    manager = TrackManager()
+    track = TrackDetails("/fake/path/file1.mp3", manager)
+    track.artist = "Artist1, Artist2 feat. Artist3 & Artist4, Character1 (CV: Artist5)"
+    track.album_artist = "Various Artists"
+    track.product = None
+
+    respx_mock.route(
+        method="GET", 
+        port__in=[api_port], 
+        host=api_host, 
+        path="/api/franchise"
+    ).mock(return_value=httpx.Response(
+        200, json=[
+            {'id': 1, 'name': '_', 'aliases': []}, 
+            {'id': 2, 'name': 'TestFranchise1', 'aliases': []}, 
+            {'id': 3, 'name': 'TestFranchise2', 'aliases': []}, 
+            {'id': 4, 'name': 'TestFranchise3', 'aliases': []}
+        ]
+    ))
+
+    expected_simple_artists = [
+        {'name': "Artist1", 'type': "Person"},
+        {'name': "Artist2", 'type': "Person"},
+        {'name': "Artist3", 'type': "Person"},
+        {'name': "Artist4", 'type': "Person"},
+        {'name': "Artist5", 'type': "Person"},
+        {'name': "Character1", 'type': "Character"}
+    ]
+
+    # Act
+    await track.create_artist_objects()
+    simple_artists = track.mbArtistDetails
+
+    # Assert
+    assert len(manager.artist_data) == 6, f"Unexpected number of entries in artist_data"
+    assert len(simple_artists) == len(expected_simple_artists), f"Expected {len(expected_simple_artists)} simple artists, got {len(simple_artists)}"
+    for i, artist in enumerate(simple_artists):
+        assert artist.name == expected_simple_artists[i]['name'], f"Name mismatch at index {i}: expected {expected_simple_artists[i]['name']}, got {artist.name}"
+        assert artist.type == expected_simple_artists[i]['type'], f"Type mismatch at index {i}: expected {expected_simple_artists[i]['type']}, got {artist.type}"
 
 async def test_create_mbartist_objects_without_db_information():
     pass
