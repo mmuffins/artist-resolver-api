@@ -88,18 +88,20 @@ class MbArtistDetails:
 		return	f"{self.name}"
 	
 	def update_from_customization(self, data: dict) -> None:
+		"""
+		Update instance details with information from db
+		"""
 		self.include = data['include']
 		self.custom_name = data['name']
 		self.custom_original_name = data['originalName']
 		self.id = data['id']
 
-	def update_from_simple_artist_dict(self, data: dict) -> None:
-		self.custom_name = data['artist']
-		self.custom_original_name = data['name']
-		self.id = data['artistId']
-
 	@classmethod
 	def from_dict(cls, data: dict, artist_list: list['MbArtistDetails']):
+		"""
+		Creates artist objects based on the provided dictionary object
+		"""
+		
 		aliases = [Alias.from_dict(alias) for alias in data.get("aliases", [])]
 		
 		artist = cls(
@@ -122,6 +124,10 @@ class MbArtistDetails:
 
 	@staticmethod
 	def parse_json(json_str: str) -> list['MbArtistDetails']:
+		"""
+		Deserializes an artist_json string into multiple artist objects
+		"""
+		
 		data = json.loads(json_str)
 		artist_list: list[MbArtistDetails] = []
 		for item in data:
@@ -135,7 +141,7 @@ class SimpleArtistDetails(MbArtistDetails):
 		
 		self.product = product
 		self.product_id = product_id
-		self.mbid = SimpleArtistDetails.generate_instance_hash(f"{self.name}-{self.product_id}")
+		self.mbid = self.generate_instance_hash(f"{self.name}-{self.product_id}")
 
 	def __str__(self):
 		return f"{self.name}"
@@ -143,20 +149,31 @@ class SimpleArtistDetails(MbArtistDetails):
 	def __repr__(self):
 		return f"{self.name}"
 
-	@staticmethod
-	def generate_instance_hash(unique_string: str):
+	def generate_instance_hash(self, unique_string: str):
+		"""
+		Generates hash that uniquely identifies an instance
+		"""
+
 		return hashlib.sha256(unique_string.encode()).hexdigest()
 
 	@staticmethod
 	def parse_simple_artist(artist_list: str, product: str, product_id: int) -> List['SimpleArtistDetails']:
+		"""
+		Deserializes a string containing a list of artists into artist objects 
+		"""
+
 		split_artists = SimpleArtistDetails.split_artist(artist_list)
-		mbartist_list: List['SimpleArtistDetails'] = []
+		simple_artist_list: List['SimpleArtistDetails'] = []
 		for artist in split_artists:
-			mbartist_list.append(SimpleArtistDetails.from_simple_artist(artist, product, product_id, mbartist_list))
-		return mbartist_list
+			simple_artist_list.append(SimpleArtistDetails.from_simple_artist(artist, product, product_id))
+		return simple_artist_list
 
 	@classmethod
-	def from_simple_artist(cls, artist: str, product: str, product_id: int, artist_list: List['SimpleArtistDetails']):
+	def from_simple_artist(cls, artist: str, product: str, product_id: int):
+		"""
+		Creates artist object
+		"""
+
 		extracedArtist = SimpleArtistDetails.extract_cv_artist(artist)
 		artistType = "Character"
 		artist_include = False
@@ -166,7 +183,7 @@ class SimpleArtistDetails(MbArtistDetails):
 			extracedArtist = artist
 			artist_include = True
 
-		mbartist = cls(
+		simple_artist = cls(
 			include = artist_include,
 			name = extracedArtist,
 			type = artistType,
@@ -180,22 +197,42 @@ class SimpleArtistDetails(MbArtistDetails):
 			product_id = product_id
 		)
 
-		return mbartist
+		return simple_artist
 	
+	def update_from_simple_artist_dict(self, data: dict) -> None:
+		"""
+		Update instance details with information from db
+		"""
+
+		self.custom_name = data['artist']
+		self.custom_original_name = data['name']
+		self.id = data['artistId']
+
+
 	@staticmethod
 	def split_artist_list(artist):
-		# Split by common delimiters but keep parenthesis intact
+		"""
+		Splits artist string by common delimiters like and, with or feat
+		"""
+
 		regex = re.compile(r'\s?[,&;、×]\s?|\sand\s|\s?with\s?|\s?feat\.?(?:uring)?\s?')
 		return regex.split(artist)
 
 	@staticmethod
 	def split_artist_cv(artist):
-		# Match and split at parenthesis but keep the parenthesis content as separate elements
+		"""
+		Splits artist string containing character and voice artist, e.g. Artist 1(CV: Artist 2)
+		"""
+
 		regex = re.compile(r'(\s?[\(|（](?:[Cc][Vv][\:|\.|：]?\s?).*[\)|）])')
 		return regex.split(artist)
 
 	@staticmethod
 	def split_artist(artist):
+		"""
+		Splits artist string into individual artists
+		"""
+
 		artist_list = SimpleArtistDetails.split_artist_list(artist)
 
 		split_list = []
@@ -209,12 +246,20 @@ class SimpleArtistDetails(MbArtistDetails):
 	
 	@staticmethod
 	def extract_cv_artist(cv_artist: str) -> str:
+		"""
+		Extracts the artist name from strings in format (CV: artist)
+		"""
+
 		regex = re.compile(r'\((?:[Cc][Vv][\:|\.|：]?\s?)([^)]+)\)')
 		match = regex.search(cv_artist)
 		return match.group(1) if match else None
 
 	@staticmethod
 	def parse_simple_artist_franchise(track_product, track_album_artist, product_list: dict) -> dict:
+		"""
+		Determines correct product for an artist based on a product list
+		"""
+		
 		product = {"id": None}
 
 		if not track_product:
@@ -284,7 +329,7 @@ class TrackDetails:
 	
 	async def create_artist_objects (self) -> None:
 		"""
-		Creates individual artist objects from id3 tags of the file
+		Creates artist objects from id3 tags of a file
 		"""
 
 		if self.artist_relations:
