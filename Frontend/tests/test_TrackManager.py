@@ -209,20 +209,6 @@ async def test_create_track_file_with_artist_json(mock_id3_tags):
     )
     mock_id3_instance.getall.return_value = [mock_artist_relations] 
 
-    # Mocking the 404 response for a specific MBID
-    # respx_mock.get(f"/mbartist/mbid/{mbid}").mock(
-    #     return_value=httpx.Response(200, json={'id': 1, 'mbId': 'f3688ad9-cd14-4cee-8fa0-0f4434e762bb', 'name': 'ClariS-Changed', 'originalName': 'ClariS-Original-Changed', 'include': True})
-    # )
-    # respx_mock.route(
-    #     method="GET", 
-    #     port__in=[api_port], 
-    #     host=api_host, 
-    #     path=f"/api/mbartist/mbid/{mbid}"
-    # ).mock(return_value=httpx.Response(404))
-
-    # Add a catch-all for everything that's not explicitly routed
-    # respx_mock.route().respond(404)
-    
     # Act
     manager = TrackManager()
     track = TrackDetails("/fake/path/file1.mp3", manager)
@@ -276,9 +262,6 @@ async def test_create_track_file_without_artist_json(respx_mock, mock_id3_tags):
         ]
     ))
 
-    # Add a catch-all for everything that's not explicitly routed
-    # respx_mock.route().respond(504, text="Route was not mocked")
-    
     # Act
     manager = TrackManager()
     track = TrackDetails("/fake/path/file1.mp3", manager)
@@ -294,7 +277,6 @@ async def test_create_track_file_without_artist_json(respx_mock, mock_id3_tags):
     assert track.original_artist == reference_track.original_artist
     assert track.original_title == reference_track.original_title
     assert track.product == reference_track.product
-
 
 @pytest.mark.asyncio
 @respx.mock(assert_all_mocked=True)
@@ -323,20 +305,6 @@ async def test_parse_artist_json_with_nested_objects(respx_mock):
             expected_person3
         ])
 
-    # Mocking the 404 response for a specific MBID
-    # respx_mock.get(f"/mbartist/mbid/{mbid}").mock(
-    #     return_value=httpx.Response(200, json={'id': 1, 'mbId': 'f3688ad9-cd14-4cee-8fa0-0f4434e762bb', 'name': 'ClariS-Changed', 'originalName': 'ClariS-Original-Changed', 'include': True})
-    # )
-    # respx_mock.route(
-    #     method="GET", 
-    #     port__in=[api_port], 
-    #     host=api_host, 
-    #     path=f"/api/mbartist/mbid/{mbid}"
-    # ).mock(return_value=httpx.Response(404))
-
-    # Add a catch-all for everything that's not explicitly routed
-    # respx_mock.route().respond(404)
-    
     # Act
     await track.create_artist_objects()
 
@@ -350,10 +318,6 @@ async def test_parse_artist_json_with_nested_objects(respx_mock):
         assert artists[i].name == expected[i]["name"], f"name mismatch at index {i}: expected {expected[i]["name"]}, got {artists[i].name}"
         assert artists[i].sort_name == expected[i]["sort_name"], f"sort_name mismatch at index {i}: expected {expected[i]["sort_name"]}, got {artists[i].sort_name}"
         assert artists[i].type == expected[i]["type"], f"type mismatch at index {i}: expected {expected[i]["type"]}, got {artists[i].type}"
-        # assert artists[i].joinphrase == expected[i]["joinphrase"], f"joinphrase mismatch at index {i}: expected {expected[i]["joinphrase"]}, got {artists[i].joinphrase}"
-        # assert artists[i].custom_name == expected[i]["custom_name"]
-        # assert artists[i].custom_original_name == expected[i]["custom_original_name"]
-        # assert artists[i].include == expected[i]["include"]
 
 
 @pytest.mark.asyncio
@@ -400,11 +364,115 @@ async def test_split_artist_string_into_simple_artist_objects(respx_mock):
         assert artist.name == expected_simple_artists[i]['name'], f"Name mismatch at index {i}: expected {expected_simple_artists[i]['name']}, got {artist.name}"
         assert artist.type == expected_simple_artists[i]['type'], f"Type mismatch at index {i}: expected {expected_simple_artists[i]['type']}, got {artist.type}"
 
-async def test_create_mbartist_objects_without_db_information():
-    pass
+@pytest.mark.asyncio
+@respx.mock(assert_all_mocked=True)
+async def test_create_mbartist_objects_without_db_information(respx_mock):
+    # Arrange
+    manager = TrackManager()
 
-async def test_create_mbartist_objects_with_db_information():
-    pass
+    artist1 = MbArtistDetails(
+        name="Artist1",
+        type="Person",
+        disambiguation="",
+        sort_name="Artist1, Firstname",
+        id="mock-artist1-id",
+        aliases=[],
+        type_id="b6e035f4-3ce9-331c-97df-83397230b0df",
+        joinphrase=""
+    )
+
+    artist2 = MbArtistDetails(
+        name="Artist2",
+        type="Person",
+        disambiguation="",
+        sort_name="Artist2, Firstname",
+        id="mock-artist2-id",
+        aliases=[],
+        type_id="b6e035f4-3ce9-331c-97df-83397230b0df",
+        joinphrase=""
+    )
+
+    # Populate artist_data with MbArtistDetails
+    manager.artist_data[artist1.mbid] = artist1
+    manager.artist_data[artist2.mbid] = artist2
+
+    # Mock the DB call to always return 404
+    respx_mock.route(
+        method="GET", 
+        port__in=[api_port], 
+        host=api_host, 
+        path__regex=r"/api/mbartist/mbid/.*"
+    ).mock(return_value=httpx.Response(404))
+
+    # Add a catch-all for everything that's not explicitly routed
+    # respx_mock.route().respond(404)
+
+    # Act
+    await manager.update_artists_info_from_db()
+
+    # Assert
+    assert manager.artist_data[artist1.mbid].custom_name == artist1.sort_name
+    assert manager.artist_data[artist2.mbid].custom_name == artist2.sort_name
+    assert manager.artist_data[artist1.mbid].custom_original_name == artist1.name
+    assert manager.artist_data[artist2.mbid].custom_original_name == artist2.name
+    assert manager.artist_data[artist1.mbid].include == artist1.include
+    assert manager.artist_data[artist2.mbid].include == artist2.include
+
+
+@pytest.mark.asyncio
+@respx.mock(assert_all_mocked=True)
+async def test_create_mbartist_objects_with_db_information(respx_mock):
+    # Arrange
+    manager = TrackManager()
+
+    artist1 = MbArtistDetails(
+        name="Artist1 Lastname",
+        type="Person",
+        disambiguation="",
+        sort_name="Lastname, Artist1",
+        id="mock-artist1-id",
+        aliases=[],
+        type_id="b6e035f4-3ce9-331c-97df-83397230b0df",
+        joinphrase=""
+    )
+
+    artist1_expected = {
+        'id': 239,
+        'mbid': 'mock-artist1-id',
+        'custom_name': 'Expected Lastname Artist1',
+        'custom_original_name': 'Expected Lastname Artist1 Original',
+        'include': False
+    }
+
+    # Populate artist_data with MbArtistDetails
+    manager.artist_data[artist1.mbid] = artist1
+
+    # Mock the DB call to return 200 for the specified mbid
+    respx_mock.route(
+        method="GET", 
+        port__in=[api_port], 
+        host=api_host, 
+        path=f"/api/mbartist/mbid/mock-artist1-id"
+    ).mock(return_value=httpx.Response(
+        200, json={
+            'id': artist1_expected["id"],
+            'mbid': artist1_expected["mbid"],
+            'name': artist1_expected["custom_name"],
+            'originalName': artist1_expected["custom_original_name"],
+            'include': artist1_expected["include"]
+        }
+    ))
+
+    # Act
+    await manager.update_artists_info_from_db()
+
+    # Assert
+    assert manager.artist_data[artist1.mbid].id == artist1_expected["id"]
+    assert manager.artist_data[artist1.mbid].mbid == artist1_expected["mbid"]
+    assert manager.artist_data[artist1.mbid].custom_name == artist1_expected["custom_name"]
+    assert manager.artist_data[artist1.mbid].custom_original_name == artist1_expected["custom_original_name"]
+    assert manager.artist_data[artist1.mbid].include == artist1_expected["include"]
+
 
 async def test_create_simple_artist_objects_with_db_information():
     pass
