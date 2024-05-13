@@ -295,7 +295,7 @@ async def test_create_track_file_without_artist_json(respx_mock, mock_id3_tags):
 
 @pytest.mark.asyncio
 @respx.mock(assert_all_mocked=True)
-async def test_create_mbartist_objects_with_nested_objects(respx_mock):
+async def test_parse_artist_json_with_nested_objects(respx_mock):
     # Arrange
     track = create_mock_trackdetails()
     manager = track.manager
@@ -352,3 +352,47 @@ async def test_create_mbartist_objects_with_nested_objects(respx_mock):
         # assert artists[i].custom_name == expected[i]["custom_name"]
         # assert artists[i].custom_original_name == expected[i]["custom_original_name"]
         # assert artists[i].include == expected[i]["include"]
+
+
+async def test_split_artist_string_into_simple_artist():
+    pass
+
+async def test_create_mbartist_objects_without_db_information():
+    pass
+
+async def test_create_mbartist_objects_with_db_information():
+    pass
+
+async def test_create_simple_artist_objects_with_db_information():
+    pass
+
+async def test_create_simple_artist_objects_without_db_information():
+    pass
+
+async def test_update_db_simple_artist_name_does_not_exist_in_db():
+    # simple 1: artist and alias does not exist on server
+    pass
+
+async def test_update_db_simple_artist_unchanged_from_db():
+    # simple 2: artist / alias exist on server and is equal to local data
+    pass
+
+async def test_update_db_simple_artist_name_was_changed_to_artist_already_in_db():
+    # simple 4: artist / alias exist on server, custom name was changed to artist that already exists on server
+    pass
+
+async def test_update_db_simple_artist_name_was_changed_to_artist_not_already_in_db():
+    # simple 3: artist / alias exist on server, custom name was changed to artist that doesn't exist on server
+    pass
+
+async def test_update_db_mbartist_artist_does_not_exist_in_db():
+    # mbid 2: mbid already exists on server,is equal to local data
+    pass
+
+async def test_update_db_mbartist_unchanged_from_db():
+    # mbid 1: mbid does not exist on server
+    pass
+
+async def test_update_db_mbartist_name_was_changed():
+    # mbid 3: mbid already exists on server, custom name was changed
+    pass

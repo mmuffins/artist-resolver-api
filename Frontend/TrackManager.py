@@ -16,14 +16,6 @@
 # TODO: colors -> highlight colors that are different from the current id tag / were edited
 # TODO: include relation type in original artist_json from picard to be able to filter out sibling relation type
 
-# simple 1: artist and alias does not exist on server
-# simple 2: artist / alias exist on server and is equal to local data
-# simple 3: artist / alias exist on server, custom name was changed to artist that doesn't exist on server
-# simple 4: artist / alias exist on server, custom name was changed to artist that already exists on server
-# mbid 1: mbid does not exist on server
-# mbid 2: mbid already exists on server,is equal to local data
-# mbid 3: mbid already exists on server, custom name was changed
-
 
 import hashlib
 import os
