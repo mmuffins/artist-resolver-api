@@ -167,6 +167,40 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
+        public async Task Delete_Error_on_Not_Found()
+        {
+            // Add test data
+            await SeedData(1, 3, 1, 1);
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // get all elements
+            var allArtistsResponse = await client.GetAsync(artistEndpoint);
+            allArtistsResponse.EnsureSuccessStatusCode();
+            var artistList = JsonSerializer.Deserialize<IEnumerable<ArtistResource>>(await allArtistsResponse.Content.ReadAsStringAsync(), JsonOptions)
+                .ToList();
+
+            // verify original object count
+            Assert.Single(artistList);
+
+            var artist = artistList[0];
+            Assert.Equal(3, artist.Aliases.Count());
+
+
+            // verify error on deletion of invalid alias
+            var deleteResponse = await client.DeleteAsync($"{aliasEndpoint}/id/{999}");
+            Assert.Equal(System.Net.HttpStatusCode.NotFound, deleteResponse.StatusCode);
+
+
+            // verify remaining aliases
+            var checkArtistsResponse = await client.GetAsync(artistEndpoint);
+            checkArtistsResponse.EnsureSuccessStatusCode();
+            var checkArtist = JsonSerializer.Deserialize<IEnumerable<ArtistResource>>(await checkArtistsResponse.Content.ReadAsStringAsync(), JsonOptions)
+                .First();
+
+            Assert.Equal(3, artist.Aliases.Count());
+        }
+
+        [Fact]
         public async Task List()
         {
             // Add test data

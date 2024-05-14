@@ -132,6 +132,13 @@ namespace ArtistNormalizer.API.Controllers
         public async Task<IActionResult> DeleteAsync(int id)
         {
             logger.LogInformation("DELETE /alias/id/" + id);
+
+            var deleteAlias = (await aliasService.ListAsync(id, null, null)).FirstOrDefault();
+            if (deleteAlias == null)
+            {
+                return NotFound();
+            }
+
             var result = await aliasService.DeleteAsync(id);
             if (!result.Success)
                 return BadRequest(result.Message);
