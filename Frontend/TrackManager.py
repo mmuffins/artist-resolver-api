@@ -15,7 +15,7 @@
 # TODO: colors -> have specific color for values loaded from the db
 # TODO: colors -> highlight colors that are different from the current id tag / were edited
 # TODO: include relation type in original artist_json from picard to be able to filter out sibling relation type
-
+# TODO: Make it that the api doesn't automatically include related aliases, e.g. when listing franchises]
 
 import hashlib
 import os
@@ -580,12 +580,12 @@ class TrackManager:
 				return None
 
 	@staticmethod
-	async def get_simple_artist(self, id:int, name:str) -> dict:
+	async def get_simple_artist(id:int, name:str) -> dict:
 		"""
     Gets details for a simple artist from the database
 		"""
 
-		endpoint = f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.SIMPLE_ARTIST_API_ENDPOINT}?"
+		endpoint = f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.SIMPLE_ARTIST_API_ENDPOINT}"
 		params = {}
 
 		if id:
@@ -601,8 +601,11 @@ class TrackManager:
 		async with httpx.AsyncClient() as client:
 			response = await client.get(f"{endpoint}?{query_string}")
 			if response.status_code == 200:
-				return response.json()
-			else:
+				response_json = response.json()
+				
+				if response_json:
+					return response_json
+
 				return None
 	
 	@staticmethod
@@ -627,8 +630,11 @@ class TrackManager:
 		async with httpx.AsyncClient() as client:
 			response = await client.get(f"{endpoint}?{query_string}")
 			if response.status_code == 200:
-				return response.json()
-			else:
+				response_json = response.json()
+				
+				if response_json:
+					return response_json
+
 				return None
 
 	@staticmethod
@@ -811,16 +817,19 @@ async def seedData() -> None:
 	data = {
     "Name": "sandorionSERVERIMAS",
 	}
-
-	await send_post_request(data, "http://localhost:23409/api/artist")
+	# artist_sandrionimas = await send_get_request(f"http://localhost:23409/api/artist?name={data["Name"]}")
+	# await send_post_request(data, "http://localhost:23409/api/artist")
 	artist_sandrionimas = await send_get_request(f"http://localhost:23409/api/artist?name={data["Name"]}")
-
+	# await send_post_request(data, "http://localhost:23409/api/artist")
 
 	data = {
     "artistId": artist_sandrionimas["id"],
     "Name": "サンドリオン",
     "franchiseId": product_idolmasterproduct["id"],
 	}
+	# await send_get_request(f"http://localhost:23409/api/alias?name={data["Name"]}&franchiseId={data["franchiseId"]}")
+	artist_sandrionimas = await send_post_request(data, "http://localhost:23409/api/alias")
+	await send_get_request(f"http://localhost:23409/api/alias?name={data["Name"]}&franchiseId={data["franchiseId"]}")
 	artist_sandrionimas = await send_post_request(data, "http://localhost:23409/api/alias")
 
 
@@ -837,7 +846,8 @@ async def send_get_request(url) -> None:
 		print('url:', url)
 		print('Status Code:', response.status_code)
 		print('Response:', response.text)
-		return response.json()[0]
+		a = (response.json())[0]
+		return a
 
 
 async def main() -> None:
