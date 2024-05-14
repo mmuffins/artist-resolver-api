@@ -111,6 +111,61 @@ async def test_post_simple_artist_alias_conflict(respx_mock):
 
 @pytest.mark.asyncio
 @respx.mock(assert_all_mocked=True)
+async def test_delete_simple_artist_alias_success(respx_mock):
+    # Arrange
+    alias_id = 88
+
+    respx_mock.route(
+        method="DELETE",
+        port=api_port,
+        host=api_host,
+        path=f"/api/alias/id/{alias_id}"
+    ).mock(return_value=httpx.Response(200))
+
+    # Act
+    await TrackManager.delete_simple_artist_alias(alias_id)
+
+    # Assert
+    assert respx_mock.calls.call_count == 1, "Expected one call to delete the alias, but found a different number."
+
+@pytest.mark.asyncio
+@respx.mock(assert_all_mocked=True)
+async def test_delete_simple_artist_alias_not_found(respx_mock):
+    # Arrange
+    alias_id = 88
+
+    respx_mock.route(
+        method="DELETE",
+        port=api_port,
+        host=api_host,
+        path=f"/api/alias/id/{alias_id}"
+    ).mock(return_value=httpx.Response(404))
+
+    # Act & Assert
+    with pytest.raises(Exception) as excinfo:
+        await TrackManager.delete_simple_artist_alias(alias_id)
+    assert f"Alias with ID {alias_id} was not found" in str(excinfo.value)
+
+@pytest.mark.asyncio
+@respx.mock(assert_all_mocked=True)
+async def test_delete_simple_artist_alias_server_error(respx_mock):
+    # Arrange
+    alias_id = 88
+
+    respx_mock.route(
+        method="DELETE",
+        port=api_port,
+        host=api_host,
+        path=f"/api/alias/id/{alias_id}"
+    ).mock(return_value=httpx.Response(500))
+
+    # Act & Assert
+    with pytest.raises(Exception) as excinfo:
+        await TrackManager.delete_simple_artist_alias(alias_id)
+    assert f"An error occurred when deleting alias with ID {alias_id}" in str(excinfo.value)
+
+@pytest.mark.asyncio
+@respx.mock(assert_all_mocked=True)
 async def test_update_simple_artist_success(respx_mock):
     # Arrange
     artist = SimpleArtistDetails(

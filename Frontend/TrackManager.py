@@ -499,7 +499,7 @@ class TrackManager:
     Sends changes for all artists in the local artist_data list to the db
 		"""
 
-		raise NotImplementedError()
+		
 		for artist in self.artist_data.values():
 			if isinstance(artist, SimpleArtistDetails):
 				await TrackManager.send_simple_artist_changes_to_db(None, artist)
@@ -513,6 +513,7 @@ class TrackManager:
     Sends changes for mb artist artist_data list to the db
 		"""
 
+		raise NotImplementedError()
 		customization = await TrackManager.get_mbartist(artist.mbid)
 		if (None == customization):
 			await TrackManager.post_mbartist(artist)
@@ -526,7 +527,7 @@ class TrackManager:
 		"""
 
 		postedArtist = await TrackManager.post_simple_artist(artist)
-		postedAlias = TrackManager.post_simple_artist_alias(postedArtist.id, artist.custom_name, artist.product_id)
+		postedAlias = await TrackManager.post_simple_artist_alias(postedArtist.id, artist.custom_name, artist.product_id)
 	
 	@staticmethod
 	async def get_mbartist(mbid:str) -> dict:
@@ -715,6 +716,23 @@ class TrackManager:
 					raise Exception(f"Failed to create alias for name {name}: {response.text} ({response.status_code} {response.reason_phrase})")
 
 	@staticmethod
+	async def delete_simple_artist_alias(id: int) -> None:
+		"""
+    Deletes a simple artist alias
+		"""
+
+		async with httpx.AsyncClient() as client:
+			response = await client.delete(f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.SIMPLE_ARTIST_ALIAS_API_ENDPOINT}/id/{id}")
+			
+			match response.status_code:
+				case 200:
+					return 
+				case 404:
+					raise Exception(f"Alias with ID {id} was not found: {response.status_code}")
+				case _:
+					raise Exception(f"An error occurred when deleting alias with ID {id}: {response.status_code}")
+
+	@staticmethod
 	async def update_mbartist(self, id:int, artist:MbArtistDetails) -> None:
 		"""
 		Updates the db record of a mb artist
@@ -767,6 +785,7 @@ class TrackManager:
 
 
 async def seedData() -> None:
+
 	data = {
     "MbId": "f3688ad9-cd14-4cee-8fa0-0f4434e762bb",
     "Name": "ClariS-Changed",
@@ -851,7 +870,7 @@ async def send_get_request(url) -> None:
 
 
 async def main() -> None:
-	# await seedData()
+	await seedData()
 	manager = TrackManager()
 	dir = "C:/Users/email_000/Desktop/music/sample/nodetailsmultiple"
 	dir = "C:/Users/email_000/Desktop/music/sample/detailsmultiple"
@@ -864,3 +883,19 @@ async def main() -> None:
 
 if __name__ == "__main__":
 	asyncio.run(main())
+
+
+# GET api/artist, item exists -> http 200, response text = `[{"id":99,"name":"ARTISTNAME","aliases":[]}]`
+# GET api/artist, item does not exist -> http 200, response text = `[]`
+
+# POST api/artist, item already exists -> http 409
+# POST api/artist, item does not exist -> http 200, response text = `{"id":99,"name":"ARTISTNAME","aliases":[]}`
+
+# GET api/alias, item exists -> http 200, resonse text = `'[{"id":88,"name":"ALIASNAME","artistId":99,"artist":"ARTISTNAME","franchiseId":4,"franchise":"FRANCHISENAME"}]'`
+# GET api/alias, item does not exist -> http 200, response text = `[]`
+
+# POST api/alias, item already exists -> http 409
+# POST api/alias, item does not exist -> http 200, response text = `{"id":88,"name":"ALIASNAME","artistId":99,"artist":"ARTISTNAME","franchiseId":4,"franchise":"FRANCHISENAME"}`
+
+# DELETE api/alias, item exists -> http 200
+# DELETE api/alias, item doesn't exist -> http 404

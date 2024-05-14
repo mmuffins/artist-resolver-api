@@ -705,10 +705,7 @@ async def test_update_db_simple_artist_all_equal_to_db(respx_mock):
         product_id="1"
     )
 
-    # Setting the artist ID to a specific value
     artist.id = 101
-
-    # Adding the artist to the TrackManager's artist_data dictionary
     manager.artist_data[artist.mbid] = artist
 
     # Mocking the database response to return the same artist data
