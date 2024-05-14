@@ -474,7 +474,7 @@ async def test_create_mbartist_objects_with_db_information(respx_mock):
 
 @pytest.mark.asyncio
 @respx.mock(assert_all_mocked=True)
-async def test_create_simple_artist_objects_without_db_information(respx_mock):
+async def test_create_simple_artist_objects_with_unknown_alias(respx_mock):
     # Arrange
     manager = TrackManager()
 
@@ -508,13 +508,13 @@ async def test_create_simple_artist_objects_without_db_information(respx_mock):
     manager.artist_data[artist1.mbid] = artist1
     manager.artist_data[artist2.mbid] = artist2
 
-    # Mock the DB call to always return 404
+    # Mock the DB call to return an empty object
     respx_mock.route(
         method="GET", 
         port__in=[api_port], 
         host=api_host, 
         path__regex=r"/api/alias.*"
-    ).mock(return_value=httpx.Response(404))
+    ).mock(return_value=httpx.Response(200, text="[]"))
 
     # Act
     await manager.update_artists_info_from_db()
@@ -527,8 +527,92 @@ async def test_create_simple_artist_objects_without_db_information(respx_mock):
     assert manager.artist_data[artist1.mbid].include == artist1.include
     assert manager.artist_data[artist2.mbid].include == artist2.include
 
-async def test_create_simple_artist_objects_with_db_information():
-    pass
+@pytest.mark.asyncio
+@respx.mock(assert_all_mocked=True)
+async def test_create_simple_artist_objects_with_db_information(respx_mock):
+    # Arrange
+    manager = TrackManager()
+
+    artist1 = SimpleArtistDetails(
+        name="SimpleArtist1",
+        type="Person",
+        disambiguation="",
+        sort_name="SimpleArtist1",
+        id="mock-artist1-id",
+        aliases=[],
+        type_id="b6e035f4-3ce9-331c-97df-83397230b0df",
+        joinphrase="",
+        product="TestProduct",
+        product_id="1"
+    )
+
+    artist1_expected = {
+        'id': 248,
+        'name': 'SimpleArtist1',
+        'artistId': 41,
+        'artist': 'CustomSimpleArtist1',
+        'franchiseId': 1,
+        'franchise': '_'
+    }
+
+    artist2 = SimpleArtistDetails(
+        name="SimpleArtist2",
+        type="Person",
+        disambiguation="",
+        sort_name="SimpleArtist2",
+        id="mock-artist2-id",
+        aliases=[],
+        type_id="b6e035f4-3ce9-331c-97df-83397230b0df",
+        joinphrase="",
+        product="_",
+        product_id="1"
+    )
+
+    artist2_expected = {
+        'id': 249,
+        'name': 'SimpleArtist2',
+        'artistId': 42,
+        'artist': 'CustomSimpleArtist2',
+        'franchiseId': 1,
+        'franchise': '_'
+    }
+
+    # Populate artist_data with SimpleArtistDetails
+    manager.artist_data[artist1.mbid] = artist1
+    manager.artist_data[artist2.mbid] = artist2
+
+    # Mock the DB call to return 200 for the specified artist names with franchiseId
+
+    respx_mock.route(
+        method="GET",
+        port=api_port,
+        host=api_host,
+        path="/api/alias",
+        params={"name": "SimpleArtist1", "franchiseId": "1"}
+    ).mock(return_value=httpx.Response(200, json=[artist1_expected]))
+
+    respx_mock.route(
+        method="GET",
+        port=api_port,
+        host=api_host,
+        path="/api/alias",
+        params={"name": "SimpleArtist2", "franchiseId": "1"}
+    ).mock(return_value=httpx.Response(200, json=[artist2_expected]))
+
+    # Act
+    await manager.update_artists_info_from_db()
+
+    # Assert
+    assert manager.artist_data[artist1.mbid].custom_name == artist1_expected['artist'], f"Expected {artist1_expected['artist']}, got {manager.artist_data[artist1.mbid].custom_name}"
+    assert manager.artist_data[artist1.mbid].custom_original_name == artist1_expected['name'], f"Expected {artist1_expected['name']}, got {manager.artist_data[artist1.mbid].custom_original_name}"
+    assert manager.artist_data[artist1.mbid].id == artist1_expected['artistId'], f"Expected {artist1_expected['artistId']}, got {manager.artist_data[artist1.mbid].id}"
+    assert manager.artist_data[artist1.mbid].include == artist1.include
+
+    assert manager.artist_data[artist2.mbid].custom_name == artist2_expected['artist'], f"Expected {artist2_expected['artist']}, got {manager.artist_data[artist2.mbid].custom_name}"
+    assert manager.artist_data[artist2.mbid].custom_original_name == artist2_expected['name'], f"Expected {artist2_expected['name']}, got {manager.artist_data[artist2.mbid].custom_original_name}"
+    assert manager.artist_data[artist2.mbid].id == artist2_expected['artistId'], f"Expected {artist2_expected['artistId']}, got {manager.artist_data[artist2.mbid].id}"
+    assert manager.artist_data[artist2.mbid].include == artist2.include
+
 
 @pytest.mark.asyncio
 async def test_parse_simple_artist_franchise():
