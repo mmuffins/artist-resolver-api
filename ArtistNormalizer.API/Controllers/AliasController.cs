@@ -96,8 +96,7 @@ namespace ArtistNormalizer.API.Controllers
                     return BadRequest($"Alias already exists for artist {resolvedAlias.Artist.Id} with franchise {resolvedAlias.Franchise.Id}");
                 }
 
-                var existingAlias = mapper.Map<Alias, AliasResource>(resolvedAlias);
-                return Ok(existingAlias);
+                return Conflict($"An alias already exists for artist {resolvedAlias.Artist.Id} with franchise {resolvedAlias.Franchise.Id}");
             }
 
             Artist resolvedArtist = (await artistService.ListAsync(resource.artistid, null)).FirstOrDefault();

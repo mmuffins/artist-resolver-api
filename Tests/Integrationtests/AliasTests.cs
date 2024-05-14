@@ -102,7 +102,7 @@ namespace Tests.Integrationtests
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
             // Create new aliases
-            List<Artist> aliasList = GenerateArtists(1, 3, 1);
+            List<Artist> aliasList = GenerateArtists(1, 1, 1);
             string aliasName = "duplicatename";
 
             Artist parentArtist = aliasList.First();
@@ -113,26 +113,16 @@ namespace Tests.Integrationtests
             FranchiseResource parentFranchiseResource = await PostFranchise(parentFranchise);
             parentFranchise.Id = parentFranchiseResource.Id;
 
-            foreach (var alias in parentArtist.Aliases)
-            {
-                alias.Name = aliasName;
-                var jsonString = new StringContent(JsonSerializer.Serialize(new { alias.Name, artistid = parentArtist.Id, franchiseId = alias.Franchise.Id }), Encoding.UTF8, "application/json");
-                HttpResponseMessage postResponse = await client.PostAsync(aliasEndpoint, jsonString);
-                postResponse.EnsureSuccessStatusCode();
+            var postAlias = parentArtist.Aliases.First();
 
-                var postResponseObj = JsonSerializer.Deserialize<AliasResource>(await postResponse.Content.ReadAsStringAsync(), JsonOptions);
-                Assert.Equal(alias.Name, postResponseObj.Name);
-                Assert.Equal(parentArtist.Name, postResponseObj.Artist);
-                Assert.Equal(alias.Franchise.Name, postResponseObj.Franchise);
-            }
+            postAlias.Name = aliasName;
+            var jsonString = new StringContent(JsonSerializer.Serialize(new { postAlias.Name, artistid = parentArtist.Id, franchiseId = postAlias.Franchise.Id }), Encoding.UTF8, "application/json");
+            HttpResponseMessage postResponse = await client.PostAsync(aliasEndpoint, jsonString);
+            postResponse.EnsureSuccessStatusCode();
 
-            // Verify that all aliases have been created
-            var aliasVerifyListResponse = await client.GetAsync(aliasEndpoint);
-            aliasVerifyListResponse.EnsureSuccessStatusCode();
 
-            var aliasVerifyList = JsonSerializer.Deserialize<IEnumerable<AliasResource>>(await aliasVerifyListResponse.Content.ReadAsStringAsync(), JsonOptions);
-
-            Assert.Single(aliasVerifyList);
+            HttpResponseMessage failurePostResponse = await client.PostAsync(aliasEndpoint, jsonString);
+            Assert.Equal(System.Net.HttpStatusCode.Conflict, failurePostResponse.StatusCode);
         }
 
         [Fact]
