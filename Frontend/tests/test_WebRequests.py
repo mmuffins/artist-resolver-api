@@ -32,7 +32,7 @@ async def test_post_simple_artist_success(respx_mock):
     ).mock(return_value=httpx.Response(200, json={"id": 99, "name": "SimpleArtist", "aliases": []}))
 
     # Act
-    await TrackManager.post_simple_artist(None, artist)
+    await TrackManager.post_simple_artist(artist)
 
     # Assert
     assert respx_mock.calls.call_count == 1, "Expected one call to post the artist, but found a different number."
@@ -63,7 +63,7 @@ async def test_post_simple_artist_conflict(respx_mock):
 
     # Act & Assert
     with pytest.raises(Exception) as excinfo:
-        await TrackManager.post_simple_artist(None, artist)
+        await TrackManager.post_simple_artist(artist)
     assert "Failed to post artist data" in str(excinfo.value)
 
 
@@ -190,7 +190,7 @@ async def test_update_simple_artist_success(respx_mock):
     ).mock(return_value=httpx.Response(200))
 
     # Act
-    await TrackManager.update_simple_artist(None, artist_id, artist)
+    await TrackManager.update_simple_artist(artist_id, artist)
 
     # Assert
     assert respx_mock.calls.call_count == 1, "Expected one call to update the artist, but found a different number."
@@ -222,7 +222,7 @@ async def test_update_simple_artist_not_found(respx_mock):
 
     # Act & Assert
     with pytest.raises(Exception) as excinfo:
-        await TrackManager.update_simple_artist(None, artist_id, artist)
+        await TrackManager.update_simple_artist(artist_id, artist)
     assert "Could not find artist with MBID" in str(excinfo.value)
 
 @pytest.mark.asyncio
@@ -341,7 +341,7 @@ async def test_update_mbartist_success(respx_mock):
     ).mock(return_value=httpx.Response(200))
 
     # Act
-    await TrackManager.update_mbartist(None, artist_id, artist)
+    await TrackManager.update_mbartist(artist_id, artist)
 
     # Assert
     assert respx_mock.calls.call_count == 1, "Expected one call to update the MB artist, but found a different number."
@@ -371,7 +371,7 @@ async def test_update_mbartist_not_found(respx_mock):
 
     # Act & Assert
     with pytest.raises(Exception) as excinfo:
-        await TrackManager.update_mbartist(None, artist_id, artist)
+        await TrackManager.update_mbartist(artist_id, artist)
     assert "Could not find artist with MBID" in str(excinfo.value)
 
 @pytest.mark.asyncio
@@ -438,7 +438,7 @@ async def test_post_mbartist_success(respx_mock):
     ).mock(return_value=httpx.Response(200, json={"id": 99, "name": "MbArtist", "aliases": []}))
 
     # Act
-    await TrackManager.post_mbartist(None, artist)
+    await TrackManager.post_mbartist(artist)
 
     # Assert
     assert respx_mock.calls.call_count == 1, "Expected one call to post the MB artist, but found a different number."
@@ -467,5 +467,5 @@ async def test_post_mbartist_conflict(respx_mock):
 
     # Act & Assert
     with pytest.raises(Exception) as excinfo:
-        await TrackManager.post_mbartist(None, artist)
+        await TrackManager.post_mbartist(artist)
     assert "Artist with MBID" in str(excinfo.value)

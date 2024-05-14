@@ -687,17 +687,20 @@ def test_simple_artist_split_artist():
 
 @pytest.mark.asyncio
 @respx.mock(assert_all_mocked=True)
-async def test_update_db_simple_artist_all_equal_to_db(respx_mock):
+async def test_update_db_simple_artist_alias_and_artist_do_not_exist_in_db(respx_mock):
     # Arrange
     manager = TrackManager()
 
-    # Creating a SimpleArtistDetails object with predefined attributes
+    server_artist_id = 99
+    server_alias_id = 88
+
+
     artist = SimpleArtistDetails(
-        name="SimpleArtist",
+        name="NewSimpleArtist",
         type="Person",
         disambiguation="",
-        sort_name="SimpleArtist",
-        id="mock-artist-id",
+        sort_name="NewSimpleArtist",
+        id="-1",
         aliases=[],
         type_id="b6e035f4-3ce9-331c-97df-83397230b0df",
         joinphrase="",
@@ -705,10 +708,103 @@ async def test_update_db_simple_artist_all_equal_to_db(respx_mock):
         product_id="1"
     )
 
-    artist.id = 101
+    artist.custom_name = "NewCustomName"
+
     manager.artist_data[artist.mbid] = artist
 
-    # Mocking the database response to return the same artist data
+    # Mock the GET requests to simulate checking if the artist and alias exist
+    respx_mock.route(
+        method="GET",
+        port=api_port,
+        host=api_host,
+        path="/api/artist"
+    ).mock(return_value=httpx.Response(404))
+
+    respx_mock.route(
+        method="GET",
+        port=api_port,
+        host=api_host,
+        path="/api/alias"
+    ).mock(return_value=httpx.Response(404))
+
+    # Mock the POST requests to create new artist and alias
+    respx_mock.route(
+        method="POST",
+        port=api_port,
+        host=api_host,
+        path="/api/artist",
+    ).mock(return_value=httpx.Response(200, json={"id":server_artist_id,"name":artist.custom_name,"aliases":[]}))
+
+    
+    respx_mock.route(
+        method="POST",
+        port=api_port,
+        host=api_host,
+        path="/api/alias"
+    ).mock(return_value=httpx.Response(200, json={"id":server_alias_id,"name":artist.name,"artistId":server_artist_id,"artist":artist.custom_name,"franchiseId":1,"franchise":"_"}))
+
+    # Act
+    await manager.send_changes_to_db()
+
+    # Assert
+    assert respx_mock.calls.call_count == 4, "Expected four calls: two GET requests and two POST requests"
+    
+    # verify if artist exists
+    assert respx_mock.calls[0].request.method == "GET", "Call to verify if an artist exist was not of type GET"
+
+    # post new artist
+    post_new_artist_call = respx_mock.calls[1].request 
+    assert post_new_artist_call.method == "POST", "Call to create new artist was not of type POST"
+    post_new_artist_call_content = json.loads(post_new_artist_call.content.decode())
+    assert post_new_artist_call_content == {'Name': artist.custom_name}, f"Post body to create new artist did not match expected object"
+    
+    # verify if alias exists
+    assert respx_mock.calls[2].request.method == "GET", "Call to verify if an alias exist was not of type GET"
+
+    # post new alias
+    post_new_alias_call = respx_mock.calls[3].request 
+    assert post_new_alias_call.method == "POST", "Call to create new alias was not of type POST"
+    post_new_alias_call_content = json.loads(post_new_alias_call.content.decode())
+    assert post_new_alias_call_content == {'Name': artist.name, 'artistid': server_artist_id, 'franchiseid': '1'}, f"Post body to create new alias did not match expected object"
+
+
+@pytest.mark.asyncio
+@respx.mock(assert_all_mocked=True)
+async def test_update_db_simple_artist_all_equal_to_db(respx_mock):
+    # Arrange
+    manager = TrackManager()
+
+    server_artist_id = 99
+    server_alias_id = 88
+
+    artist = SimpleArtistDetails(
+        name="NewSimpleArtist",
+        type="Person",
+        disambiguation="",
+        sort_name="NewSimpleArtist",
+        id="-1",
+        aliases=[],
+        type_id="b6e035f4-3ce9-331c-97df-83397230b0df",
+        joinphrase="",
+        product="TestProduct",
+        product_id=1
+    )
+
+    artist.custom_name = "NewCustomName"
+
+    manager.artist_data[artist.mbid] = artist
+
+    # Mock the GET requests to simulate checking if the artist and alias exist
+    respx_mock.route(
+        method="GET",
+        port=api_port,
+        host=api_host,
+        path="/api/artist"
+    ).mock(return_value=httpx.Response(200, json=[{
+        'id': server_artist_id,
+        'name': artist.custom_name,
+    }]))
+
     respx_mock.route(
         method="GET",
         port=api_port,
@@ -716,40 +812,31 @@ async def test_update_db_simple_artist_all_equal_to_db(respx_mock):
         path="/api/alias",
         params={"name": artist.name, "franchiseId": artist.product_id}
     ).mock(return_value=httpx.Response(200, json=[{
-        'id': artist.id,
-        'name': artist.custom_original_name,
-        'artistId': artist.id,
+        'id': server_alias_id,
+        'name': artist.name,
+        'artistId': server_artist_id,
         'artist': artist.custom_name,
-        'franchiseId': int(artist.product_id),
+        'franchiseId': artist.product_id,
         'franchise': artist.product
     }]))
-
-    # Mocking the POST alias call to return 200 OK without changes
-    respx_mock.route(
-        method="POST",
-        port=api_port,
-        host=api_host,
-        path="/api/alias"
-    ).mock(return_value=httpx.Response(200))
 
     # Act
     await manager.send_changes_to_db()
 
     # Assert
-    # Ensure the alias post method was not called since the artist data is already up to date
-    assert respx_mock.calls.call_count == 1, "Expected only one call to check the alias from the database, but found more."
-    for call in respx_mock.calls:
-        assert call.request.method == "GET", f"Unexpected method {call.request.method} was called."
+    assert respx_mock.calls.call_count == 2, "Expected only two calls to check if artist and alias exist."
 
-    # Validate the artist data to ensure no changes were made
-    assert manager.artist_data[artist.mbid].custom_name == artist.custom_name, f"Expected {artist.custom_name}, got {manager.artist_data[artist.mbid].custom_name}"
-    assert manager.artist_data[artist.mbid].custom_original_name == artist.custom_original_name, f"Expected {artist.custom_original_name}, got {manager.artist_data[artist.mbid].custom_original_name}"
-    assert manager.artist_data[artist.mbid].id == artist.id, f"Expected {artist.id}, got {manager.artist_data[artist.mbid].id}"
-    assert manager.artist_data[artist.mbid].include == artist.include, f"Expected {artist.include}, got {manager.artist_data[artist.mbid].include}"
+    # verify if artist exists
+    assert respx_mock.calls[0].request.method == "GET", "Call to verify if an artist exist was not of type GET"
+    assert respx_mock.calls[0].request.url.params["name"] == artist.custom_name, "Call to verify if an artist exist used an unexpected parameter"
+    
+    # verify if alias exists
+    assert respx_mock.calls[1].request.method == "GET", "Call to verify if an alias exist was not of type GET"
+    assert respx_mock.calls[1].request.url.params["name"] == artist.name, "Call to verify if an artist exist used an unexpected parameter"
+    assert respx_mock.calls[1].request.url.params["franchiseId"] == str(artist.product_id), "Call to verify if an artist exist used an unexpected parameter"
+    
 
 
-async def test_update_db_simple_artist_alias_and_artist_do_not_exist_in_db():
-    pass
 
 async def test_update_db_simple_artist_new_alias_existing_artist_in_db():
     pass
@@ -774,3 +861,94 @@ async def test_update_db_mbartist_name_was_changed():
     # mbid 3: mbid already exists on server, custom name was changed
     pass
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+@pytest.mark.asyncio
+@respx.mock(assert_all_mocked=True)
+async def test_send_changes_to_db_with_updated_artist(respx_mock):
+    # Arrange
+    manager = TrackManager()
+
+    artist = SimpleArtistDetails(
+        name="UpdatedSimpleArtist",
+        type="Person",
+        disambiguation="",
+        sort_name="UpdatedSimpleArtist",
+        id="mock-artist-id",
+        aliases=[],
+        type_id="b6e035f4-3ce9-331c-97df-83397230b0df",
+        joinphrase="",
+        product="TestProduct",
+        product_id="1"
+    )
+
+    artist.id = 201  # Existing artist ID in the database
+    manager.artist_data[artist.mbid] = artist
+
+    # Mock the GET requests to simulate checking if the artist and alias exist
+    respx_mock.route(
+        method="GET",
+        port=api_port,
+        host=api_host,
+        path="/api/artist"
+    ).mock(return_value=httpx.Response(200, json={
+        'id': artist.id,
+        'name': artist.custom_name
+    }))
+
+    respx_mock.route(
+        method="GET",
+        port=api_port,
+        host=api_host,
+        path="/api/alias"
+    ).mock(return_value=httpx.Response(200, json=[]))
+
+    # Mock the PUT request to update the existing artist
+    respx_mock.route(
+        method="PUT",
+        port=api_port,
+        host=api_host,
+        path=f"/api/artist/id/{artist.id}"
+    ).mock(return_value=httpx.Response(200))
+
+    # Mock the POST request to create new alias
+    respx_mock.route(
+        method="POST",
+        port=api_port,
+        host=api_host,
+        path="/api/alias"
+    ).mock(return_value=httpx.Response(200))
+
+    # Act
+    await manager.send_changes_to_db()
+
+    # Assert
+    assert respx_mock.calls.call_count == 4, "Expected four calls: two GET requests, one PUT request, and one POST request"
+    assert respx_mock.calls[0].request.method == "GET"
+    assert respx_mock.calls[1].request.method == "GET"
+    assert respx_mock.calls[2].request.method == "PUT"
+    assert respx_mock.calls[3].request.method == "POST"
