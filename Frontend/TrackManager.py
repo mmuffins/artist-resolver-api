@@ -266,13 +266,14 @@ class SimpleArtistDetails(MbArtistDetails):
 		Determines correct product for an artist based on a product list
 		"""
 		
-		product = {"id": None}
+		product = {"id": None, "name": None}
 
-		if not track_product:
+		if track_product:
+			product["name"] = track_product
+		elif track_album_artist:
 			product["name"] = track_album_artist
-
-		# the default product indicating that the track doesn't belong to a franchise is _
-		if not product["name"]:
+		else:
+			# the default product indicating that the track doesn't belong to a franchise is _
 			product["name"] = "_"
 		
 		resolved_product = [p for p in product_list if p["name"] == product["name"]]
@@ -280,8 +281,9 @@ class SimpleArtistDetails(MbArtistDetails):
 		if resolved_product:
 			return resolved_product[0]
 			
-		product["name"] = "_"
-		return product
+		default_product = [p for p in product_list if p["name"] == "_"]
+		
+		return default_product[0]
 
 class TrackDetails:
 	tag_mappings = {
@@ -842,9 +844,9 @@ async def main() -> None:
 	# await seedData()
 	manager = TrackManager()
 	dir = "C:/Users/email_000/Desktop/music/sample/nodetailsmultiple"
-	dir = "C:/Users/email_000/Desktop/music/sample/nodetails"
-	dir = "C:/Users/email_000/Desktop/music/sample/spiceandwolf"
 	dir = "C:/Users/email_000/Desktop/music/sample/detailsmultiple"
+	dir = "C:/Users/email_000/Desktop/music/sample/spiceandwolf"
+	dir = "C:/Users/email_000/Desktop/music/sample/nodetails"
 	await manager.load_directory(dir)
 	await manager.update_artists_info_from_db()
 	await manager.send_changes_to_db()

@@ -1,9 +1,10 @@
+import hashlib
 import pytest
 import httpx
 import respx
 import json
 from unittest.mock import AsyncMock, patch, MagicMock
-from TrackManager import TrackManager, MbArtistDetails, TrackManager, TrackDetails
+from TrackManager import TrackManager, MbArtistDetails, SimpleArtistDetails, TrackManager, TrackDetails
 
 api_port = 23409
 api_host = "localhost"
@@ -280,7 +281,7 @@ async def test_create_track_file_without_artist_json(respx_mock, mock_id3_tags):
 
 @pytest.mark.asyncio
 @respx.mock(assert_all_mocked=True)
-async def test_parse_artist_json_with_nested_objects(respx_mock):
+async def test_parse_artist_json_with_nested_objects():
     # Arrange
     track = create_mock_trackdetails()
     manager = track.manager
@@ -318,7 +319,6 @@ async def test_parse_artist_json_with_nested_objects(respx_mock):
         assert artists[i].name == expected[i]["name"], f"name mismatch at index {i}: expected {expected[i]["name"]}, got {artists[i].name}"
         assert artists[i].sort_name == expected[i]["sort_name"], f"sort_name mismatch at index {i}: expected {expected[i]["sort_name"]}, got {artists[i].sort_name}"
         assert artists[i].type == expected[i]["type"], f"type mismatch at index {i}: expected {expected[i]["type"]}, got {artists[i].type}"
-
 
 @pytest.mark.asyncio
 @respx.mock(assert_all_mocked=True)
@@ -418,7 +418,6 @@ async def test_create_mbartist_objects_without_db_information(respx_mock):
     assert manager.artist_data[artist1.mbid].include == artist1.include
     assert manager.artist_data[artist2.mbid].include == artist2.include
 
-
 @pytest.mark.asyncio
 @respx.mock(assert_all_mocked=True)
 async def test_create_mbartist_objects_with_db_information(respx_mock):
@@ -473,12 +472,134 @@ async def test_create_mbartist_objects_with_db_information(respx_mock):
     assert manager.artist_data[artist1.mbid].custom_original_name == artist1_expected["custom_original_name"]
     assert manager.artist_data[artist1.mbid].include == artist1_expected["include"]
 
+@pytest.mark.asyncio
+@respx.mock(assert_all_mocked=True)
+async def test_create_simple_artist_objects_without_db_information(respx_mock):
+    # Arrange
+    manager = TrackManager()
+
+    artist1 = SimpleArtistDetails(
+        name="SimpleArtist1",
+        type="Person",
+        disambiguation="",
+        sort_name="SimpleArtist1",
+        id="mock-artist1-id",
+        aliases=[],
+        type_id="b6e035f4-3ce9-331c-97df-83397230b0df",
+        joinphrase="",
+        product="TestProduct",
+        product_id="1"
+    )
+
+    artist2 = SimpleArtistDetails(
+        name="SimpleArtist2",
+        type="Person",
+        disambiguation="",
+        sort_name="SimpleArtist2",
+        id="mock-artist2-id",
+        aliases=[],
+        type_id="b6e035f4-3ce9-331c-97df-83397230b0df",
+        joinphrase="",
+        product="TestProduct",
+        product_id="2"
+    )
+
+    # Populate artist_data with SimpleArtistDetails
+    manager.artist_data[artist1.mbid] = artist1
+    manager.artist_data[artist2.mbid] = artist2
+
+    # Mock the DB call to always return 404
+    respx_mock.route(
+        method="GET", 
+        port__in=[api_port], 
+        host=api_host, 
+        path__regex=r"/api/alias.*"
+    ).mock(return_value=httpx.Response(404))
+
+    # Act
+    await manager.update_artists_info_from_db()
+
+    # Assert
+    assert manager.artist_data[artist1.mbid].custom_name == artist1.sort_name
+    assert manager.artist_data[artist2.mbid].custom_name == artist2.sort_name
+    assert manager.artist_data[artist1.mbid].custom_original_name == artist1.name
+    assert manager.artist_data[artist2.mbid].custom_original_name == artist2.name
+    assert manager.artist_data[artist1.mbid].include == artist1.include
+    assert manager.artist_data[artist2.mbid].include == artist2.include
 
 async def test_create_simple_artist_objects_with_db_information():
     pass
 
-async def test_create_simple_artist_objects_without_db_information():
-    pass
+@pytest.mark.asyncio
+async def test_parse_simple_artist_franchise():
+    # Arrange
+    product_list = [
+        {"id": 1, "name": "_"},
+        {"id": 2, "name": "Franchise1"},
+        {"id": 3, "name": "Franchise2"},
+    ]
+
+    # Act & Assert
+    result = SimpleArtistDetails.parse_simple_artist_franchise(None, product_list[1]["name"], product_list)
+    assert result == product_list[1]
+
+    result = SimpleArtistDetails.parse_simple_artist_franchise(product_list[2]["name"], None, product_list)
+    assert result == product_list[2]
+
+    result = SimpleArtistDetails.parse_simple_artist_franchise(product_list[2]["name"], product_list[1]["name"], product_list)
+    assert result == product_list[2]
+
+    result = SimpleArtistDetails.parse_simple_artist_franchise(None, "NonExistentFranchise", product_list)
+    assert result == product_list[0]
+
+    result = SimpleArtistDetails.parse_simple_artist_franchise(None, None, product_list)
+    assert result == product_list[0]
+
+def test_simple_artist_generate_instance_hash():
+    # Arrange
+    artist = SimpleArtistDetails(
+        name="ArtistName",
+        type="Person",
+        disambiguation="",
+        sort_name="ArtistName",
+        id="mock-artist-id",
+        aliases=[],
+        type_id="b6e035f4-3ce9-331c-97df-83397230b0df",
+        joinphrase="",
+        product="Product",
+        product_id="1"
+    )
+    unique_string = "ArtistName-1"
+
+    # Act
+    result = artist.generate_instance_hash(unique_string)
+
+    # Assert
+    expected_hash = hashlib.sha256(unique_string.encode()).hexdigest()
+    assert result == expected_hash, f"Expected hash {expected_hash}, got {result}"
+
+def test_simple_artist_split_artist():
+    # Arrange
+    artist_string = "Artist1, Artist2 feat. Artist3 & Artist4, Character1 (CV: Artist5)"
+    expected_result = [
+        {"type": "Person", "include": True, "name": "Artist1"},
+        {"type": "Person", "include": True, "name": "Artist2"},
+        {"type": "Person", "include": True, "name": "Artist3"},
+        {"type": "Person", "include": True, "name": "Artist4"},
+        {"type": "Person", "include": True, "name": "Artist5"},
+        {"type": "Character", "include": False, "name": "Character1"},
+    ]
+
+    # Act
+    result = SimpleArtistDetails.split_artist(artist_string)
+
+    # Assert
+    assert len(result) == len(expected_result), f"Expected {len(expected_result)} artists, got {len(result)}"
+    for i in range(len(result)):
+        assert result[i]["name"] == expected_result[i]["name"], f"Name mismatch at index {i}: expected {expected_result[i]['name']}, got {result[i]['name']}"
+        assert result[i]["type"] == expected_result[i]["type"], f"Type mismatch at index {i}: expected {expected_result[i]['type']}, got {result[i]['type']}"
+        assert result[i]["include"] == expected_result[i]["include"], f"Include mismatch at index {i}: expected {expected_result[i]['include']}, got {result[i]['include']}"
+
 
 async def test_update_db_simple_artist_name_does_not_exist_in_db():
     # simple 1: artist and alias does not exist on server
