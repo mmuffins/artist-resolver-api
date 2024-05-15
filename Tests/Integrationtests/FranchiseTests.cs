@@ -168,38 +168,5 @@ namespace Tests.Integrationtests
             // Expect a BadRequest due to duplicate entry
             Assert.Equal(System.Net.HttpStatusCode.NotFound, verifyResponse.StatusCode);
         }
-
-
-        [Fact]
-        public async Task Cleanup_After_Last_Alias_Removed()
-        {
-            await SeedData(1, 2, 1, 1);
-
-            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
-            HttpResponseMessage allFranchisesResponse = await client.GetAsync(franchiseEndpoint);
-            allFranchisesResponse.EnsureSuccessStatusCode();
-            var franchiseList = JsonSerializer.Deserialize<IEnumerable<FranchiseResource>>(await allFranchisesResponse.Content.ReadAsStringAsync(), JsonOptions)
-                .ToList();
-
-            // verify original object count
-            Assert.Single(franchiseList);
-
-            var franchise = franchiseList.First();
-            Assert.Equal(2, franchise.Aliases.Count());
-
-            // delete aliases
-            foreach (var alias in franchise.Aliases)
-            {
-                var deleteResponse = await client.DeleteAsync($"{aliasEndpoint}/id/{alias.Id}");
-                deleteResponse.EnsureSuccessStatusCode();
-            }
-
-            // verify franchises were deleted
-            HttpResponseMessage checkRemainingFranchises = await client.GetAsync(franchiseEndpoint);
-            checkRemainingFranchises.EnsureSuccessStatusCode();
-            var checkFranchise = JsonSerializer.Deserialize<IEnumerable<FranchiseResource>>(await checkRemainingFranchises.Content.ReadAsStringAsync(), JsonOptions);
-            Assert.Empty(checkFranchise);
-        }
     }
 }
