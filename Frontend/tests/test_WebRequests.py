@@ -7,6 +7,7 @@ from TrackManager import TrackManager, MbArtistDetails, SimpleArtistDetails, Tra
 
 api_port = 23409
 api_host = "localhost"
+
 @pytest.mark.asyncio
 @respx.mock(assert_all_mocked=True)
 async def test_post_simple_artist_success(respx_mock):
