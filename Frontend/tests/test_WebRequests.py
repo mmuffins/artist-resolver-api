@@ -181,6 +181,7 @@ async def test_update_simple_artist_success(respx_mock):
         product="TestProduct",
         product_id="1"
     )
+    artist.custom_name = "New Custom Name"
     artist_id = 1
 
     respx_mock.route(
@@ -188,7 +189,11 @@ async def test_update_simple_artist_success(respx_mock):
         port=api_port,
         host=api_host,
         path=f"/api/artist/id/{artist_id}"
-    ).mock(return_value=httpx.Response(200))
+    ).mock(return_value=httpx.Response(200, json={
+        'id': artist_id,
+        'name': artist.custom_name,
+        'aliases':[],
+    }))
 
     # Act
     await TrackManager.update_simple_artist(artist_id, artist)
@@ -332,6 +337,7 @@ async def test_update_mbartist_success(respx_mock):
         type_id="b6e035f4-3ce9-331c-97df-83397230b0df",
         joinphrase=""
     )
+    artist.custom_name = "New Custom Name"
     artist_id = 1
 
     respx_mock.route(
@@ -339,7 +345,11 @@ async def test_update_mbartist_success(respx_mock):
         port=api_port,
         host=api_host,
         path=f"/api/mbartist/id/{artist_id}"
-    ).mock(return_value=httpx.Response(200))
+    ).mock(return_value=httpx.Response(200, json={
+        'id': artist_id,
+        'name': artist.custom_name,
+        'aliases':[],
+    }))
 
     # Act
     await TrackManager.update_mbartist(artist_id, artist)

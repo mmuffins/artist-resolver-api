@@ -1,3 +1,9 @@
+# ALIAS:
+# test_alias_not_found_when_saving
+# test_alias_found_when_saving_points_to_wrong_artist
+# test_alias_found_when_saving_points_to_correct_artist
+
+# DONE:
 
 import hashlib
 import pytest
@@ -151,7 +157,6 @@ async def test_create_artist_objects_with_db_information(respx_mock):
     assert manager.artist_data[artist2.mbid].id == artist2_expected['artistId'], f"Expected {artist2_expected['artistId']}, got {manager.artist_data[artist2.mbid].id}"
     assert manager.artist_data[artist2.mbid].include == artist2.include
 
-
 @pytest.mark.asyncio
 async def test_parse_franchise():
     # Arrange
@@ -222,22 +227,64 @@ def test_split_artist():
         assert result[i]["type"] == expected_result[i]["type"], f"Type mismatch at index {i}: expected {expected_result[i]['type']}, got {result[i]['type']}"
         assert result[i]["include"] == expected_result[i]["include"], f"Include mismatch at index {i}: expected {expected_result[i]['include']}, got {result[i]['include']}"
 
+@pytest.mark.asyncio
+@respx.mock(assert_all_mocked=True)
+async def test_split_artist_string_into_simple_artist_objects(respx_mock):
+    # Arrange
+    manager = TrackManager()
+    track = TrackDetails("/fake/path/file1.mp3", manager)
+    track.artist = "Artist1, Artist2 feat. Artist3 & Artist4, Character1 (CV: Artist5)"
+    track.album_artist = "Various Artists"
+    track.product = None
+
+    respx_mock.route(
+        method="GET", 
+        port__in=[api_port], 
+        host=api_host, 
+        path="/api/franchise"
+    ).mock(return_value=httpx.Response(
+        200, json=[
+            {'id': 1, 'name': '_', 'aliases': []}, 
+            {'id': 2, 'name': 'TestFranchise1', 'aliases': []}, 
+            {'id': 3, 'name': 'TestFranchise2', 'aliases': []}, 
+            {'id': 4, 'name': 'TestFranchise3', 'aliases': []}
+        ]
+    ))
+
+    expected_simple_artists = [
+        {'name': "Artist1", 'type': "Person"},
+        {'name': "Artist2", 'type': "Person"},
+        {'name': "Artist3", 'type': "Person"},
+        {'name': "Artist4", 'type': "Person"},
+        {'name': "Artist5", 'type': "Person"},
+        {'name': "Character1", 'type': "Character"}
+    ]
+
+    # Act
+    await track.create_artist_objects()
+    simple_artists = track.mbArtistDetails
+
+    # Assert
+    assert len(manager.artist_data) == 6, f"Unexpected number of entries in artist_data"
+    assert len(simple_artists) == len(expected_simple_artists), f"Expected {len(expected_simple_artists)} simple artists, got {len(simple_artists)}"
+    for i, artist in enumerate(simple_artists):
+        assert artist.name == expected_simple_artists[i]['name'], f"Name mismatch at index {i}: expected {expected_simple_artists[i]['name']}, got {artist.name}"
+        assert artist.type == expected_simple_artists[i]['type'], f"Type mismatch at index {i}: expected {expected_simple_artists[i]['type']}, got {artist.type}"
+
 
 @pytest.mark.asyncio
 @respx.mock(assert_all_mocked=True)
-async def artist_without_id_not_found_when_saving(respx_mock):
+async def test_artist_without_id_not_found_when_saving(respx_mock):
     # Arrange
     manager = TrackManager()
-
     server_artist_id = 99
-    server_alias_id = 88
 
     artist = SimpleArtistDetails(
         name="NewSimpleArtist",
         type="Person",
         disambiguation="",
         sort_name="NewSimpleArtist",
-        id="-1",
+        id=-1,
         aliases=[],
         type_id="b6e035f4-3ce9-331c-97df-83397230b0df",
         joinphrase="",
@@ -248,19 +295,12 @@ async def artist_without_id_not_found_when_saving(respx_mock):
     artist.custom_name = "NewCustomName"
     manager.artist_data[artist.mbid] = artist
 
-    # Mock the GET requests to simulate checking if the artist and alias exist
+    # Mock the GET requests to simulate that no artist exists
     respx_mock.route(
         method="GET",
         port=api_port,
         host=api_host,
         path="/api/artist"
-    ).mock(return_value=httpx.Response(200, text="[]"))
-
-    respx_mock.route(
-        method="GET",
-        port=api_port,
-        host=api_host,
-        path="/api/alias"
     ).mock(return_value=httpx.Response(200, text="[]"))
 
     # Mock the POST requests to create new artist and alias
@@ -269,56 +309,165 @@ async def artist_without_id_not_found_when_saving(respx_mock):
         port=api_port,
         host=api_host,
         path="/api/artist",
-    ).mock(return_value=httpx.Response(200, json={"id":server_artist_id,"name":artist.custom_name,"aliases":[]}))
-
+    ).mock(return_value=httpx.Response(200, json={
+        'id': server_artist_id,
+        'name': artist.custom_name,
+        'aliases':[],
+    }))
     
-    respx_mock.route(
-        method="POST",
-        port=api_port,
-        host=api_host,
-        path="/api/alias"
-    ).mock(return_value=httpx.Response(200, json={"id":server_alias_id,"name":artist.name,"artistId":server_artist_id,"artist":artist.custom_name,"franchiseId":1,"franchise":"_"}))
-
     # Act
     await TrackManager.send_simple_artist_changes_to_db(artist)
 
     # Assert
-    assert respx_mock.calls.call_count == 4, "Expected four calls: two GET requests and two POST requests"
+    assert respx_mock.calls.call_count == 2
+    # verify existing artists
+    assert respx_mock.calls[0].request.method == "GET", "Call to verify artist exist was not of type GET"
+    respx_mock.calls[0].request.url.params["name"] == artist.custom_name, "Call to verify artist did not have expected parameters"
     
-    # verify if artist exists
-    assert respx_mock.calls[0].request.method == "GET", "Call to verify if an artist exist was not of type GET"
-
     # post new artist
-    post_new_artist_call = respx_mock.calls[1].request 
-    assert post_new_artist_call.method == "POST", "Call to create new artist was not of type POST"
-    post_new_artist_call_content = json.loads(post_new_artist_call.content.decode())
-    assert post_new_artist_call_content == {'Name': artist.custom_name}, f"Post body to create new artist did not match expected object"
+    assert respx_mock.calls[1].request.method == "POST", "Call to create new artist was not of type POST"
+    call_1_content = json.loads(respx_mock.calls[1].request.content.decode())
+    assert call_1_content == {'Name': artist.custom_name}, f"Post body to create new artist did not match expected object"
     
-    # verify if alias exists
-    assert respx_mock.calls[2].request.method == "GET", "Call to verify if an alias exist was not of type GET"
-
-    # post new alias
-    post_new_alias_call = respx_mock.calls[3].request 
-    assert post_new_alias_call.method == "POST", "Call to create new alias was not of type POST"
-    post_new_alias_call_content = json.loads(post_new_alias_call.content.decode())
-    assert post_new_alias_call_content == {'Name': artist.name, 'artistid': server_artist_id, 'franchiseid': '1'}, f"Post body to create new alias did not match expected object"
-
-
 @pytest.mark.asyncio
 @respx.mock(assert_all_mocked=True)
-async def artist_with_id_found_by_id_when_saving(respx_mock):
+async def test_artist_without_id_found_by_name_when_saving(respx_mock):
     # Arrange
     manager = TrackManager()
-
     server_artist_id = 99
-    server_alias_id = 88
 
     artist = SimpleArtistDetails(
         name="NewSimpleArtist",
         type="Person",
         disambiguation="",
         sort_name="NewSimpleArtist",
-        id="-1",
+        id=-1,
+        aliases=[],
+        type_id="b6e035f4-3ce9-331c-97df-83397230b0df",
+        joinphrase="",
+        product="TestProduct",
+        product_id="1"
+    )
+
+    artist.custom_name = "NewCustomName"
+    manager.artist_data[artist.mbid] = artist
+
+    # Mock the GET requests to simulate that an artist when searched for name
+    respx_mock.route(
+        method="GET",
+        port=api_port,
+        host=api_host,
+        path="/api/artist",
+        params={"name": artist.custom_name},
+    ).mock(return_value=httpx.Response(200, json=[{
+        'id': server_artist_id,
+        'name': artist.custom_name,
+        'aliases':[],
+    }]))
+
+    # Act
+    await TrackManager.send_simple_artist_changes_to_db(artist)
+
+    # Assert
+    assert respx_mock.calls.call_count == 1
+    # verify existing artists
+    assert respx_mock.calls[0].request.method == "GET", "Call to verify artist exist was not of type GET"
+    respx_mock.calls[0].request.url.params["name"] == artist.custom_name, "Call to verify artist did not have expected parameters"
+    
+    # # post new artist
+    # assert respx_mock.calls[1].request.method == "POST", "Call to create new artist was not of type POST"
+    # call_1_content = json.loads(respx_mock.calls[1].request.content.decode())
+    # assert call_1_content == {'Name': artist.custom_name}, f"Post body to create new artist did not match expected object"
+    
+@pytest.mark.asyncio
+@respx.mock(assert_all_mocked=True)
+async def test_artist_with_id_not_found_when_saving(respx_mock):
+    # Arrange
+    manager = TrackManager()
+
+    server_artist_name = "ServerCustomName"
+
+    artist = SimpleArtistDetails(
+        name="NewSimpleArtist",
+        type="Person",
+        disambiguation="",
+        sort_name="NewSimpleArtist",
+        id=35,
+        aliases=[],
+        type_id="b6e035f4-3ce9-331c-97df-83397230b0df",
+        joinphrase="",
+        product="TestProduct",
+        product_id=1
+    )
+
+    artist.custom_name = "NewCustomName"
+    manager.artist_data[artist.mbid] = artist
+
+    # Mock first request to not return anything when checking artist by name
+    respx_mock.route(
+        method="GET",
+        port=api_port,
+        host=api_host,
+        path="/api/artist",
+        params={"name": artist.custom_name},
+    ).mock(return_value=httpx.Response(200, text="[]"))
+
+    # Mock second request to return artist when checking artist by ID
+    respx_mock.route(
+        method="GET",
+        port=api_port,
+        host=api_host,
+        path="/api/artist",
+        params={"id": artist.id,},
+    ).mock(return_value=httpx.Response(200, json=[{
+        'id': artist.id,
+        'name': server_artist_name,
+        'aliases':[],
+    }]))
+
+    # Mock update call to return artist
+    respx_mock.route(
+        method="PUT",
+        port=api_port,
+        host=api_host,
+        path=f"/api/artist/id/{artist.id}",
+    ).mock(return_value=httpx.Response(200, json={
+        'id': artist.id,
+        'name': artist.custom_name,
+        'aliases':[],
+    }))
+
+    # Act
+    await TrackManager.send_simple_artist_changes_to_db(artist)
+
+    # Assert
+    assert respx_mock.calls.call_count == 3, "Expected only two calls to check if artist and alias exist."
+
+    # verify if artist exists
+    assert respx_mock.calls[0].request.method == "GET", "Call to verify if an artist exist was not of type GET"
+    assert respx_mock.calls[0].request.url.params["name"] == artist.custom_name, "Call to verify if an artist exist used an unexpected parameter"
+    
+    assert respx_mock.calls[1].request.method == "GET", "Call to verify if an artist exist was not of type GET"
+    assert respx_mock.calls[1].request.url.params["id"] == str(artist.id), "Call to verify if an artist exist used an unexpected parameter"
+    
+    # post new artist
+    assert respx_mock.calls[2].request.method == "PUT", "Call to create new artist was not of type UPDATE"
+    call_2_content = json.loads(respx_mock.calls[2].request.content.decode())
+    assert call_2_content == {'Name': artist.custom_name}, f"Post body to update artist did not match expected object"
+
+
+@pytest.mark.asyncio
+@respx.mock(assert_all_mocked=True)
+async def test_artist_with_id_found_by_id_when_saving(respx_mock):
+    # Arrange
+    manager = TrackManager()
+
+    artist = SimpleArtistDetails(
+        name="NewSimpleArtist",
+        type="Person",
+        disambiguation="",
+        sort_name="NewSimpleArtist",
+        id=35,
         aliases=[],
         type_id="b6e035f4-3ce9-331c-97df-83397230b0df",
         joinphrase="",
@@ -330,34 +479,31 @@ async def artist_with_id_found_by_id_when_saving(respx_mock):
 
     manager.artist_data[artist.mbid] = artist
 
-    # Mock the GET requests to simulate checking if the artist and alias exist
+    # Mock first request to not return anything when checking artist by name
     respx_mock.route(
         method="GET",
         port=api_port,
         host=api_host,
-        path="/api/artist"
-    ).mock(return_value=httpx.Response(200, json=[{
-        'id': server_artist_id,
-        'name': artist.custom_name,
-    }]))
+        path="/api/artist",
+        params={"name": artist.custom_name},
+    ).mock(return_value=httpx.Response(200, text="[]"))
 
+    # Mock second request to return artist when checking artist by ID
     respx_mock.route(
         method="GET",
         port=api_port,
         host=api_host,
-        path="/api/alias",
-        params={"name": artist.name, "franchiseId": artist.product_id}
+        path="/api/artist",
+        params={"id": artist.id,},
     ).mock(return_value=httpx.Response(200, json=[{
-        'id': server_alias_id,
-        'name': artist.name,
-        'artistId': server_artist_id,
-        'artist': artist.custom_name,
-        'franchiseId': artist.product_id,
-        'franchise': artist.product
+        'id': artist.id,
+        'name': artist.custom_name,
+        'aliases':[],
     }]))
 
     # Act
-    await manager.send_changes_to_db()
+    await TrackManager.send_simple_artist_changes_to_db(artist)
+
 
     # Assert
     assert respx_mock.calls.call_count == 2, "Expected only two calls to check if artist and alias exist."
@@ -366,45 +512,32 @@ async def artist_with_id_found_by_id_when_saving(respx_mock):
     assert respx_mock.calls[0].request.method == "GET", "Call to verify if an artist exist was not of type GET"
     assert respx_mock.calls[0].request.url.params["name"] == artist.custom_name, "Call to verify if an artist exist used an unexpected parameter"
     
-    # verify if alias exists
-    assert respx_mock.calls[1].request.method == "GET", "Call to verify if an alias exist was not of type GET"
-    assert respx_mock.calls[1].request.url.params["name"] == artist.name, "Call to verify if an artist exist used an unexpected parameter"
-    assert respx_mock.calls[1].request.url.params["franchiseId"] == str(artist.product_id), "Call to verify if an artist exist used an unexpected parameter"
-    
-
 @pytest.mark.asyncio
 @respx.mock(assert_all_mocked=True)
-async def test_update_db_new_alias_existing_artist_in_db(respx_mock):
+async def test_artist_with_id_found_by_name_when_saving(respx_mock):
     # Arrange
     manager = TrackManager()
 
     server_artist_id = 99
-    server_alias_id = 88
 
     artist = SimpleArtistDetails(
         name="NewSimpleArtist",
         type="Person",
         disambiguation="",
         sort_name="NewSimpleArtist",
-        id="-1",
+        id="35",
         aliases=[],
         type_id="b6e035f4-3ce9-331c-97df-83397230b0df",
         joinphrase="",
         product="TestProduct",
-        product_id="1"
+        product_id=1
     )
 
     artist.custom_name = "NewCustomName"
+
     manager.artist_data[artist.mbid] = artist
 
-    # Mock the GET requests to simulate that the artist exists, but alias doesn't
-    respx_mock.route(
-        method="GET",
-        port=api_port,
-        host=api_host,
-        path="/api/alias"
-    ).mock(return_value=httpx.Response(200, text="[]"))
-
+    # Mock first get request to return artist by name
     respx_mock.route(
         method="GET",
         port=api_port,
@@ -413,39 +546,19 @@ async def test_update_db_new_alias_existing_artist_in_db(respx_mock):
     ).mock(return_value=httpx.Response(200, json=[{
         'id': server_artist_id,
         'name': artist.custom_name,
+        'aliases':[],
     }]))
 
-    respx_mock.route(
-        method="POST",
-        port=api_port,
-        host=api_host,
-        path="/api/alias"
-    ).mock(return_value=httpx.Response(200, json={"id":server_alias_id,"name":artist.name,"artistId":server_artist_id,"artist":artist.custom_name,"franchiseId":1,"franchise":"_"}))
-
     # Act
-    await manager.send_changes_to_db()
+    await TrackManager.send_simple_artist_changes_to_db(artist)
 
     # Assert
-    assert respx_mock.calls.call_count == 3, "Expected only two calls to check if artist and alias exist."
+    assert respx_mock.calls.call_count == 1, "Expected only two calls to check if artist and alias exist."
 
     # verify if artist exists
     assert respx_mock.calls[0].request.method == "GET", "Call to verify if an artist exist was not of type GET"
     assert respx_mock.calls[0].request.url.params["name"] == artist.custom_name, "Call to verify if an artist exist used an unexpected parameter"
     
-    # verify if alias exists
-    assert respx_mock.calls[1].request.method == "GET", "Call to verify if an alias exist was not of type GET"
-    assert respx_mock.calls[1].request.url.params["name"] == artist.name, "Call to verify if an artist exist used an unexpected parameter"
-    assert respx_mock.calls[1].request.url.params["franchiseId"] == str(artist.product_id), "Call to verify if an artist exist used an unexpected parameter"
-
-    # post new alias
-    post_new_alias_call = respx_mock.calls[2].request 
-    assert post_new_alias_call.method == "POST", "Call to create new alias was not of type POST"
-    post_new_alias_call_content = json.loads(post_new_alias_call.content.decode())
-    assert post_new_alias_call_content == {'Name': artist.name, 'artistid': server_artist_id, 'franchiseid': '1'}, f"Post body to create new alias did not match expected object"
-
-
-
-
 
 # @pytest.mark.asyncio
 # @respx.mock(assert_all_mocked=True)

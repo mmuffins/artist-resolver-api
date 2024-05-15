@@ -15,7 +15,6 @@
 # TODO: colors -> have specific color for values loaded from the db
 # TODO: colors -> highlight colors that are different from the current id tag / were edited
 # TODO: include relation type in original artist_json from picard to be able to filter out sibling relation type
-# TODO: Make it that the api doesn't automatically include related aliases, e.g. when listing franchises]
 
 import hashlib
 import os
@@ -59,7 +58,7 @@ class Alias:
     )
 
 class MbArtistDetails:
-  def __init__(self, name: str, type: str, disambiguation: str, sort_name: str, id: str, aliases: List[Alias], type_id: str, joinphrase: Optional[str], include:bool = True):
+  def __init__(self, name: str, type: str, disambiguation: str, sort_name: str, aliases: List[Alias], type_id: str, joinphrase: Optional[str], include:bool = True, id: int = -1,):
     self.include: bool = include
     self.name = name
     self.type = type
@@ -71,7 +70,7 @@ class MbArtistDetails:
     self.joinphrase = joinphrase
     self.custom_name = sort_name
     self.custom_original_name = name
-    self.id: int = -1
+    self.id: int = id
 
   def __str__(self):
     return	f"{self.name}"
@@ -128,8 +127,8 @@ class MbArtistDetails:
     return artist_list
   
 class SimpleArtistDetails(MbArtistDetails):
-  def __init__(self, name: str, type: str, disambiguation: str, sort_name: str, id: str, aliases: List[Alias], type_id: str, joinphrase: Optional[str], include: bool = True, product: str = "", product_id: str = ""):
-    super().__init__(name, type, disambiguation, sort_name, id, aliases, type_id, joinphrase, include)
+  def __init__(self, name: str, type: str, disambiguation: str, sort_name: str, aliases: List[Alias], type_id: str, joinphrase: Optional[str], include: bool = True, product: str = "", product_id: str = "", id: int = -1):
+    super().__init__(name, type, disambiguation, sort_name, aliases, type_id, joinphrase, include, id)
     
     self.product = product
     self.product_id = product_id
@@ -501,7 +500,11 @@ class TrackManager:
 
     for artist in self.artist_data.values():
       if isinstance(artist, SimpleArtistDetails):
-        await TrackManager.send_simple_artist_changes_to_db(None, artist)
+        if(artist.include != True):
+          continue
+
+        await TrackManager.send_simple_artist_changes_to_db(artist)
+        await TrackManager.send_simple_artist_alias_changes_to_db(artist)
       else:
         await TrackManager.send_mbartist_changes_to_db(None, artist)
 
@@ -519,33 +522,65 @@ class TrackManager:
       await TrackManager.update_mbartist(customization['id'], artist)
 
   @staticmethod
-  async def send_simple_artist_changes_to_db(track: TrackDetails, artist: SimpleArtistDetails) -> None:
+  async def send_simple_artist_changes_to_db(artist: SimpleArtistDetails) -> None:
     """
-    Sends changes for simple artist artist_data list to the db
+    Sends changes for simple artists to the db if it was changed
     """
+
     existing_artist = await TrackManager.get_simple_artist(None, artist.custom_name)
     if existing_artist:
+      # if the artist is found in the DB by name, always update local artist ID to match the DB
       artist.id = existing_artist[0]["id"]
-    else:
-      # Create new artist if it doesn't exist
+      return
+    
+    if artist.id == -1:
+      # db artist was not found by name and local data doesn't have ID, create new DB artist
       posted_artist = await TrackManager.post_simple_artist(artist)
-      artist.id = posted_artist['id']
+      artist.id = posted_artist["id"]
+      return
+    
+    # retrieve artist by ID to check for changed properties
+    existing_artist_by_id = await TrackManager.get_simple_artist(artist.id, None)
+
+    if existing_artist_by_id:
+      existing_artist_by_id = existing_artist_by_id[0]
+
+      if existing_artist_by_id["name"] == artist.custom_name:
+        # local artist still matches DB artist, no action required
+        return
+    
+      # local artist name has changed, update DB artist
+      updated_artist = await TrackManager.update_simple_artist(existing_artist_by_id["id"], artist)
+      artist.id = updated_artist["id"]
+      return
+    
+    # If reaching this point, it means that the artist could not be not located 
+    # in the DB via its name, and that it has an ID that doesn't exist in the DB
+    # Ideally, this should never happen as it means that either the DB is
+    # inconsistent or that there is a bug somewhere in the application
+    raise ValueError(f"Artist with ID {artist.id} not found in database.")
+
+  @staticmethod
+  async def send_simple_artist_alias_changes_to_db(artist: SimpleArtistDetails) -> None:
+    """
+    Sends changes for simple artist aliases to the db if it was changed
+    """
 
     existing_alias = await TrackManager.get_simple_artist_alias(artist.name, artist.product_id)
+    
+    if not existing_alias:
+      # Alias doesn't exist, created
+      await TrackManager.post_simple_artist_alias(artist.id, artist.name, artist.product_id)
+      return
+
     if existing_alias:
       existing_alias = existing_alias[0]
       if existing_alias['artistId'] != artist.id:
-        # Alias exists but points to the wrong artist
+        # Alias exists but points to the wrong artist, recreate it
         await TrackManager.delete_simple_artist_alias(existing_alias['id'])
         await TrackManager.post_simple_artist_alias(artist.id, artist.name, artist.product_id)
-      else:
-        # Alias exists and points to the correct artist
-        return
-    else:
-      # Alias doesn't exist
-      await TrackManager.post_simple_artist_alias(artist.id, artist.name, artist.product_id)
 
-
+      # if no other conditions apply the alias already exists and is up to date, no action needs to be taken
 
   @staticmethod
   async def get_mbartist(mbid:str) -> dict:
@@ -769,7 +804,7 @@ class TrackManager:
       response = await client.put(f"{endpoint}/{id}", json=data)
 
       if response.is_success:
-        return
+        return response.json()
       
       match response.status_code:
         case 404:
@@ -793,7 +828,7 @@ class TrackManager:
       response = await client.put(f"{endpoint}/{id}", json=data)
 
       if response.is_success:
-        return
+        return response.json()
       
       match response.status_code:
         case 404:
@@ -888,7 +923,7 @@ async def send_get_request(url) -> None:
 
 
 async def main() -> None:
-  await seedData()
+  # await seedData()
   manager = TrackManager()
   dir = "C:/Users/email_000/Desktop/music/sample/nodetailsmultiple"
   dir = "C:/Users/email_000/Desktop/music/sample/detailsmultiple"
