@@ -260,6 +260,9 @@ namespace Tests.Integrationtests
             updateResponse.EnsureSuccessStatusCode();
 
             // Verify
+            var updateResponseObj = JsonSerializer.Deserialize<ArtistResource>(await updateResponse.Content.ReadAsStringAsync(), JsonOptions);
+            Assert.Equal(updatedArtist.Name, updateResponseObj.Name);
+            
             var httpResponse = await client.GetAsync(artistEndpoint);
             httpResponse.EnsureSuccessStatusCode();
 
