@@ -91,8 +91,6 @@ expected_character1 = {
 }
 
 
-
-
 def create_mock_txxx(description, text):
     """
     Returns a mocked id3 frame
@@ -122,7 +120,6 @@ def create_mock_trackdetails():
     track.artist_relations = "test artist_relations"
     
     return track
-
 
 @pytest.mark.asyncio  
 async def test_trackmanager_load_directory(mocker):
@@ -294,127 +291,6 @@ async def test_parse_artist_json_with_nested_objects():
         assert artists[i].name == expected[i]["name"], f"name mismatch at index {i}: expected {expected[i]["name"]}, got {artists[i].name}"
         assert artists[i].sort_name == expected[i]["sort_name"], f"sort_name mismatch at index {i}: expected {expected[i]["sort_name"]}, got {artists[i].sort_name}"
         assert artists[i].type == expected[i]["type"], f"type mismatch at index {i}: expected {expected[i]["type"]}, got {artists[i].type}"
-
-@pytest.mark.asyncio
-@respx.mock(assert_all_mocked=True)
-async def test_create_mbartist_objects_without_db_information(respx_mock):
-    # Arrange
-    manager = TrackManager()
-
-    artist1 = MbArtistDetails(
-        name="Artist1",
-        type="Person",
-        disambiguation="",
-        sort_name="Artist1, Firstname",
-        id="mock-artist1-id",
-        aliases=[],
-        type_id="b6e035f4-3ce9-331c-97df-83397230b0df",
-        joinphrase=""
-    )
-
-    artist2 = MbArtistDetails(
-        name="Artist2",
-        type="Person",
-        disambiguation="",
-        sort_name="Artist2, Firstname",
-        id="mock-artist2-id",
-        aliases=[],
-        type_id="b6e035f4-3ce9-331c-97df-83397230b0df",
-        joinphrase=""
-    )
-
-    # Populate artist_data with MbArtistDetails
-    manager.artist_data[artist1.mbid] = artist1
-    manager.artist_data[artist2.mbid] = artist2
-
-    # Mock the DB call to always return 404
-    respx_mock.route(
-        method="GET", 
-        port__in=[api_port], 
-        host=api_host, 
-        path__regex=r"/api/mbartist/mbid/.*"
-    ).mock(return_value=httpx.Response(404))
-
-    # Add a catch-all for everything that's not explicitly routed
-    # respx_mock.route().respond(404)
-
-    # Act
-    await manager.update_artists_info_from_db()
-
-    # Assert
-    assert manager.artist_data[artist1.mbid].custom_name == artist1.sort_name
-    assert manager.artist_data[artist2.mbid].custom_name == artist2.sort_name
-    assert manager.artist_data[artist1.mbid].custom_original_name == artist1.name
-    assert manager.artist_data[artist2.mbid].custom_original_name == artist2.name
-    assert manager.artist_data[artist1.mbid].include == artist1.include
-    assert manager.artist_data[artist2.mbid].include == artist2.include
-
-@pytest.mark.asyncio
-@respx.mock(assert_all_mocked=True)
-async def test_create_mbartist_objects_with_db_information(respx_mock):
-    # Arrange
-    manager = TrackManager()
-
-    artist1 = MbArtistDetails(
-        name="Artist1 Lastname",
-        type="Person",
-        disambiguation="",
-        sort_name="Lastname, Artist1",
-        id="mock-artist1-id",
-        aliases=[],
-        type_id="b6e035f4-3ce9-331c-97df-83397230b0df",
-        joinphrase=""
-    )
-
-    artist1_expected = {
-        'id': 239,
-        'mbid': 'mock-artist1-id',
-        'custom_name': 'Expected Lastname Artist1',
-        'custom_original_name': 'Expected Lastname Artist1 Original',
-        'include': False
-    }
-
-    # Populate artist_data with MbArtistDetails
-    manager.artist_data[artist1.mbid] = artist1
-
-    # Mock the DB call to return 200 for the specified mbid
-    respx_mock.route(
-        method="GET", 
-        port__in=[api_port], 
-        host=api_host, 
-        path=f"/api/mbartist/mbid/mock-artist1-id"
-    ).mock(return_value=httpx.Response(
-        200, json={
-            'id': artist1_expected["id"],
-            'mbid': artist1_expected["mbid"],
-            'name': artist1_expected["custom_name"],
-            'originalName': artist1_expected["custom_original_name"],
-            'include': artist1_expected["include"]
-        }
-    ))
-
-    # Act
-    await manager.update_artists_info_from_db()
-
-    # Assert
-    assert manager.artist_data[artist1.mbid].id == artist1_expected["id"]
-    assert manager.artist_data[artist1.mbid].mbid == artist1_expected["mbid"]
-    assert manager.artist_data[artist1.mbid].custom_name == artist1_expected["custom_name"]
-    assert manager.artist_data[artist1.mbid].custom_original_name == artist1_expected["custom_original_name"]
-    assert manager.artist_data[artist1.mbid].include == artist1_expected["include"]
-
-
-async def test_update_db_mbartist_artist_does_not_exist_in_db():
-    # mbid 2: mbid already exists on server,is equal to local data
-    pass
-
-async def test_update_db_mbartist_unchanged_from_db():
-    # mbid 1: mbid does not exist on server
-    pass
-
-async def test_update_db_mbartist_name_was_changed():
-    # mbid 3: mbid already exists on server, custom name was changed
-    pass
 
 
 

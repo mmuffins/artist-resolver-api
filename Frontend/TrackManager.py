@@ -1,10 +1,7 @@
 # TODO: add new columns to live database
 # TODO: Make type editable. Should be a dropdown with Person, Character, Group
-# TODO: add checks for existing data when posting/updating to db
 # TODO: check if aliases can be used for better naming predictions
 # TODO: fix that the popup to enter new values is floating in space
-
-# TODO: check if data was changed and post changes to DB
 # TODO: move buttons to bottom
 # TODO: make separate table for each song
 # TODO: save_file_metadata works already but immediately returns for debugging reasons
@@ -14,6 +11,7 @@
 # TODO: colors -> have specific color for values loaded from the db
 # TODO: colors -> highlight colors that are different from the current id tag / were edited
 # TODO: include relation type in original artist_json from picard to be able to filter out sibling relation type
+# TODO: make gui display error if rest calls fail
 
 import hashlib
 import os
@@ -505,20 +503,30 @@ class TrackManager:
         await TrackManager.send_simple_artist_changes_to_db(artist)
         await TrackManager.send_simple_artist_alias_changes_to_db(artist)
       else:
-        await TrackManager.send_mbartist_changes_to_db(None, artist)
+        await TrackManager.send_mbartist_changes_to_db(artist)
 
   @staticmethod
-  async def send_mbartist_changes_to_db(track: TrackDetails, artist: MbArtistDetails) -> None:
+  async def send_mbartist_changes_to_db(artist: MbArtistDetails) -> None:
     """
     Sends changes for mb artist artist_data list to the db
     """
 
-    raise NotImplementedError()
-    customization = await TrackManager.get_mbartist(artist.mbid)
-    if (None == customization):
+    existing_artist = await TrackManager.get_mbartist(artist.mbid)
+    
+    if (None == existing_artist):
+      # DB doesn't have artist with the current MBID, create new DB artist
       await TrackManager.post_mbartist(artist)
-    else:
-      await TrackManager.update_mbartist(customization['id'], artist)
+      return
+    
+    artist.id = existing_artist["id"]
+
+    if(existing_artist["include"] != artist.include or
+        existing_artist["name"] != artist.custom_name or
+        existing_artist["originalName"] != artist.custom_original_name):
+      # artist with the current MBID was found in DB, but details were changed, update DB artist
+      await TrackManager.update_mbartist(existing_artist["id"], artist)
+
+    # Reaching this point means the DB artist is equal to the local artist, no actions need to be done
 
   @staticmethod
   async def send_simple_artist_changes_to_db(artist: SimpleArtistDetails) -> None:
@@ -533,7 +541,7 @@ class TrackManager:
       return
     
     if not artist.id:
-      # db artist was not found by name and local data doesn't have ID, create new DB artist
+      # DB artist was not found by name and local data doesn't have ID, create new DB artist
       posted_artist = await TrackManager.post_simple_artist(artist)
       artist.id = posted_artist["id"]
       return
@@ -840,11 +848,15 @@ async def seedData() -> None:
 
   data = {
     "MbId": "f3688ad9-cd14-4cee-8fa0-0f4434e762bb",
-    "Name": "ClariS-Changed",
-    "OriginalName": "ClariS-Original-Changed",
+    "Name": "ClariS-ChangedX2",
+    "OriginalName": "ClariS-Original-ChangedX2",
     "Include": True
   }
-  await send_post_request(data, "http://localhost:23409/api/mbartist")
+  # dde = await send_get_request("http://localhost:23409/api/mbartist/mbid/f3688ad9-cd14-4cee-8fa0-0f4434e762bb")
+  # dde = await send_post_request(data, "http://localhost:23409/api/mbartist")
+  
+  # dde = await send_get_request("http://localhost:23409/api/mbartist/mbid/f3688ad9-cd14-4cee-8fa0-0f4434e762bb")
+  dde = await send_put_request(data, "http://localhost:23409/api/mbartist/id/1")
 
   data = {
     "Name": "_",
@@ -920,9 +932,15 @@ async def send_get_request(url) -> None:
     a = (response.json())[0]
     return a
 
+async def send_put_request(data, url) -> None:
+  async with httpx.AsyncClient() as client:
+    response = await client.put(url, json=data)
+    print('url:', url)
+    print('Status Code:', response.status_code)
+    print('Response:', response.text)
 
 async def main() -> None:
-  # await seedData()
+  await seedData()
   manager = TrackManager()
   dir = "C:/Users/email_000/Desktop/music/sample/nodetailsmultiple"
   dir = "C:/Users/email_000/Desktop/music/sample/detailsmultiple"
@@ -951,3 +969,12 @@ if __name__ == "__main__":
 
 # DELETE api/alias, item exists -> http 200
 # DELETE api/alias, item doesn't exist -> http 404
+
+# GET api/mbartist/mbid, item exists -> http 200, `{'id': 1, 'mbId': 'MBID', 'name': 'ARTISTNAME', 'originalName': 'ORIGINALNAME', 'include': INCLUDE}`
+# GET api/mbartist/mbid, item does not exist -> http 404
+
+# POST api/mbartist, item exists -> http 409
+# POST api/mbartist, item does not exist -> http 200, `{'id': 1, 'mbId': 'MBID', 'name': 'ARTISTNAME', 'originalName': 'ORIGINALNAME', 'include': INCLUDE}`
+
+# PUT api/mbartist/id, item exists -> http 200, `{'id': 1, 'mbId': 'MBID', 'name': 'ARTISTNAME', 'originalName': 'ORIGINALNAME', 'include': INCLUDE}`
+# PUT api/mbartist/id, item does not exist -> http 404

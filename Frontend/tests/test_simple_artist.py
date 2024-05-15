@@ -444,7 +444,7 @@ async def test_artist_with_id_not_found_when_saving(respx_mock):
     assert respx_mock.calls[1].request.url.params["id"] == str(artist.id), "Call to verify if an artist exist used an unexpected parameter"
     
     # post new artist
-    assert respx_mock.calls[2].request.method == "PUT", "Call to create new artist was not of type UPDATE"
+    assert respx_mock.calls[2].request.method == "PUT", "Call to update artist was not of type UPDATE"
     call_2_content = json.loads(respx_mock.calls[2].request.content.decode())
     assert call_2_content == {'Name': artist.custom_name}, f"Post body to update artist did not match expected object"
 
