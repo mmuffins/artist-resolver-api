@@ -1,10 +1,9 @@
 # TODO: add new columns to live database
 # TODO: Make type editable. Should be a dropdown with Person, Character, Group
-# TODO: deduplicate simple artist if an track artist accidently contains artist multiple times
 # TODO: add checks for existing data when posting/updating to db
 # TODO: check if aliases can be used for better naming predictions
 # TODO: fix that the popup to enter new values is floating in space
-# TODO: post changes for simple artists
+
 # TODO: check if data was changed and post changes to DB
 # TODO: move buttons to bottom
 # TODO: make separate table for each song
@@ -58,7 +57,7 @@ class Alias:
     )
 
 class MbArtistDetails:
-  def __init__(self, name: str, type: str, disambiguation: str, sort_name: str, aliases: List[Alias], type_id: str, joinphrase: Optional[str], include:bool = True, id: int = -1,):
+  def __init__(self, name: str, type: str, disambiguation: str, sort_name: str, aliases: List[Alias], type_id: str, joinphrase: Optional[str], include:bool = True, id: int = None,):
     self.include: bool = include
     self.name = name
     self.type = type
@@ -127,7 +126,7 @@ class MbArtistDetails:
     return artist_list
   
 class SimpleArtistDetails(MbArtistDetails):
-  def __init__(self, name: str, type: str, disambiguation: str, sort_name: str, aliases: List[Alias], type_id: str, joinphrase: Optional[str], include: bool = True, product: str = "", product_id: str = "", id: int = -1):
+  def __init__(self, name: str, type: str, disambiguation: str, sort_name: str, aliases: List[Alias], type_id: str, joinphrase: Optional[str], include: bool = True, product: str = "", product_id: int = None, id: int = -1):
     super().__init__(name, type, disambiguation, sort_name, aliases, type_id, joinphrase, include, id)
     
     self.product = product
@@ -533,7 +532,7 @@ class TrackManager:
       artist.id = existing_artist[0]["id"]
       return
     
-    if artist.id == -1:
+    if not artist.id:
       # db artist was not found by name and local data doesn't have ID, create new DB artist
       posted_artist = await TrackManager.post_simple_artist(artist)
       artist.id = posted_artist["id"]
