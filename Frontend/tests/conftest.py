@@ -6,10 +6,6 @@ import json
 from unittest.mock import AsyncMock, patch, MagicMock
 from TrackManager import TrackManager, MbArtistDetails, SimpleArtistDetails, TrackManager, TrackDetails
 
-api_port = 23409
-api_host = "localhost"
-
-
 @pytest.fixture
 def mock_id3_instance(mocker):
     """

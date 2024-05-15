@@ -4,7 +4,6 @@
 # TODO: fix that the popup to enter new values is floating in space
 # TODO: move buttons to bottom
 # TODO: make separate table for each song
-# TODO: save_file_metadata works already but immediately returns for debugging reasons
 # TODO: Infer album artist from file path
 # TODO: make gui nicer looking
 # TODO: colors -> grey out rows where included is disabled
@@ -354,7 +353,6 @@ class TrackDetails:
     Writes changed id3 tags back to the filesystem
     """
 
-    return
     file_changed: bool = False
 
     for tag, mapping  in self.tag_mappings.items():

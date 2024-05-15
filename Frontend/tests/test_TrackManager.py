@@ -3,8 +3,10 @@ import pytest
 import httpx
 import respx
 import json
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch, MagicMock, call
 from TrackManager import TrackManager, MbArtistDetails, SimpleArtistDetails, TrackManager, TrackDetails
+from mutagen import id3
+from mutagen.id3 import TIT2, TPE1, TALB, TPE2, TIT1, TOAL, TOPE, TPE3
 
 api_port = 23409
 api_host = "localhost"
@@ -292,5 +294,164 @@ async def test_parse_artist_json_with_nested_objects():
         assert artists[i].sort_name == expected[i]["sort_name"], f"sort_name mismatch at index {i}: expected {expected[i]["sort_name"]}, got {artists[i].sort_name}"
         assert artists[i].type == expected[i]["type"], f"type mismatch at index {i}: expected {expected[i]["type"]}, got {artists[i].type}"
 
+@pytest.mark.asyncio
+async def test_save_file_metadata_no_changes(mock_id3_tags):
+    # Arrange
 
+    track = TrackDetails("/fake/path/file1.mp3", TrackManager())
+    track.title = "Same Title"
+    track.artist = "Same Artist"
+    track.album = "Same Album"
+    track.album_artist = "Same Album Artist"
+    track.grouping = "Same Grouping"
+    track.original_album = "Same Original Album"
+    track.original_artist = "Same Original Artist"
+    track.original_title = "Same Original Title"
+    track.id3 = id3.ID3(track.file_path)
 
+    mock_id3_instance = mock_id3_tags({
+        'TIT2': TIT2(encoding=3, text="Same Title"),
+        'TPE1': TPE1(encoding=3, text="Same Artist"),
+        'TALB': TALB(encoding=3, text="Same Album"),
+        'TPE2': TPE2(encoding=3, text="Same Album Artist"),
+        'TIT1': TIT1(encoding=3, text="Same Grouping"),
+        'TOAL': TOAL(encoding=3, text="Same Original Album"),
+        'TOPE': TOPE(encoding=3, text="Same Original Artist"),
+        'TPE3': TPE3(encoding=3, text="Same Original Title"),
+    })
+
+    # Act
+    track.save_file_metadata()
+
+    # Assert
+    mock_id3_instance.__setitem__.assert_not_called()
+    mock_id3_instance.save.assert_not_called()
+
+@pytest.mark.asyncio
+async def test_save_file_metadata_changes(mock_id3_tags):
+    # Arrange
+    track = TrackDetails("/fake/path/file1.mp3", TrackManager())
+    track.title = "New Title"
+    track.artist = "New Artist"
+    track.album = "New Album"
+    track.album_artist = "New Album Artist"
+    track.grouping = "New Grouping"
+    track.original_album = "New Original Album"
+    track.original_artist = "New Original Artist"
+    track.original_title = "New Original Title"
+    track.id3 = id3.ID3(track.file_path)
+
+    mock_id3_instance = mock_id3_tags({
+        'TIT2': TIT2(encoding=3, text="Old Title"),
+        'TPE1': TPE1(encoding=3, text="Old Artist"),
+        'TALB': TALB(encoding=3, text="Old Album"),
+        'TPE2': TPE2(encoding=3, text="Old Album Artist"),
+        'TIT1': TIT1(encoding=3, text="Old Grouping"),
+        'TOAL': TOAL(encoding=3, text="Old Original Album"),
+        'TOPE': TOPE(encoding=3, text="Old Original Artist"),
+        'TPE3': TPE3(encoding=3, text="Old Original Title"),
+    })
+
+    # Act
+    track.save_file_metadata()
+
+    # Assert
+    expected_setitem_calls = [
+        call('TIT2', TIT2(encoding=3, text=track.title)),
+        call('TPE1', TPE1(encoding=3, text=track.artist)),
+        call('TALB', TALB(encoding=3, text=track.album)),
+        call('TPE2', TPE2(encoding=3, text=track.album_artist)),
+        call('TIT1', TIT1(encoding=3, text=track.grouping)),
+        call('TOAL', TOAL(encoding=3, text=track.original_album)),
+        call('TOPE', TOPE(encoding=3, text=track.original_artist)),
+        call('TPE3', TPE3(encoding=3, text=track.original_title))
+    ]
+
+    mock_id3_instance.__setitem__.assert_has_calls(expected_setitem_calls, any_order=True)
+    mock_id3_instance.save.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_save_file_metadata_clear_tags(mock_id3_tags):
+    # Arrange
+    track = TrackDetails("/fake/path/file1.mp3", TrackManager())
+    track.title = None
+    track.artist = None
+    track.album = None
+    track.album_artist = None
+    track.grouping = None
+    track.original_album = None
+    track.original_artist = None
+    track.original_title = None
+    track.id3 = id3.ID3(track.file_path)
+
+    mock_id3_instance = mock_id3_tags({
+        'TIT2': TIT2(encoding=3, text="Old Title"),
+        'TPE1': TPE1(encoding=3, text="Old Artist"),
+        'TALB': TALB(encoding=3, text="Old Album"),
+        'TPE2': TPE2(encoding=3, text="Old Album Artist"),
+        'TIT1': TIT1(encoding=3, text="Old Grouping"),
+        'TOAL': TOAL(encoding=3, text="Old Original Album"),
+        'TOPE': TOPE(encoding=3, text="Old Original Artist"),
+        'TPE3': TPE3(encoding=3, text="Old Original Title"),
+    })
+
+    # Act
+    track.save_file_metadata()
+
+    # Assert
+    expected_pop_calls = [
+        call('TIT2', None),
+        call('TPE1', None),
+        call('TALB', None),
+        call('TPE2', None),
+        call('TIT1', None),
+        call('TOAL', None),
+        call('TOPE', None),
+        call('TPE3', None)
+    ]
+
+    mock_id3_instance.pop.assert_has_calls(expected_pop_calls, any_order=True)
+    mock_id3_instance.save.assert_not_called()
+
+@pytest.mark.asyncio
+async def test_save_file_metadata_partial_changes(mock_id3_tags):
+    # Arrange
+    track = TrackDetails("/fake/path/file1.mp3", TrackManager())
+    track.title = "New Title"
+    track.artist = "Old Artist"
+    track.album = "New Album"
+    track.album_artist = "Old Album Artist"
+    track.grouping = "New Grouping"
+    track.original_album = None
+    track.original_artist = "Old Original Artist"
+    track.original_title = None
+    track.id3 = id3.ID3(track.file_path)
+
+    mock_id3_instance = mock_id3_tags({
+        'TIT2': TIT2(encoding=3, text="Old Title"),
+        'TPE1': TPE1(encoding=3, text="Old Artist"),
+        'TALB': TALB(encoding=3, text="Old Album"),
+        'TPE2': TPE2(encoding=3, text="Old Album Artist"),
+        'TIT1': TIT1(encoding=3, text="Old Grouping"),
+        'TOAL': TOAL(encoding=3, text="Old Original Album"),
+        'TOPE': TOPE(encoding=3, text="Old Original Artist"),
+        'TPE3': TPE3(encoding=3, text="Old Original Title"),
+    })
+
+    # Act
+    track.save_file_metadata()
+
+    # Assert
+    expected_setitem_calls = [
+        call('TIT2', TIT2(encoding=3, text=track.title)),
+        call('TALB', TALB(encoding=3, text=track.album)),
+        call('TIT1', TIT1(encoding=3, text=track.grouping))
+    ]
+    expected_pop_calls = [
+        call('TOAL', None),
+        call('TPE3', None)
+    ]
+
+    mock_id3_instance.__setitem__.assert_has_calls(expected_setitem_calls, any_order=True)
+    mock_id3_instance.pop.assert_has_calls(expected_pop_calls, any_order=True)
+    mock_id3_instance.save.assert_called_once()
