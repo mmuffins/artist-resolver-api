@@ -35,15 +35,12 @@ class TrackManagerGUI:
 
     def setup_ui(self):
         self.root.title("Track Manager")
-        self.root.minsize(500,500)
+        self.root.geometry("700x380")
+        self.root.minsize(500,380)
+        self.root.resizable(True, True)
         self.setup_layout()
 
     def setup_layout(self):
-
-        def table_canvas_configure_handler(e):
-            self.tables_canvas.configure(scrollregion=self.tables_canvas.bbox("all"))
-            self.tables_canvas.itemconfig(tables_canvas_window, width=e.width)
-
         # main frame to hold elements
         main_frame = Frame(self.root)
         main_frame.pack(fill=BOTH, expand=True)
@@ -60,10 +57,12 @@ class TrackManagerGUI:
         self.scrollbar.pack(side=RIGHT, fill=Y)
 
         self.inner_frame = Frame(self.tables_canvas)
-        tables_canvas_window = self.tables_canvas.create_window((0, 0), window=self.inner_frame, anchor="nw")
+        self.tables_canvas_window = self.tables_canvas.create_window((0, 0), window=self.inner_frame, anchor="nw")
 
         self.tables_canvas.configure(yscrollcommand=self.scrollbar.set)
-        self.tables_canvas.bind('<Configure>', table_canvas_configure_handler)
+        self.tables_canvas.bind('<Configure>', self.on_canvas_configure)
+
+        self.inner_frame.bind('<Configure>', self.on_inner_frame_configure)
 
         self.buttons_frame = Frame(main_frame)
         self.buttons_frame.pack(padx=10, pady=10, side=BOTTOM)
@@ -163,6 +162,12 @@ class TrackManagerGUI:
             "row": tree.identify_row(event.y),
             "column": tree.identify_column(event.x)
         }
+
+    def on_canvas_configure(self, e):
+        self.tables_canvas.itemconfig(self.tables_canvas_window, width=e.width)
+    
+    def on_inner_frame_configure(self, e):
+        self.tables_canvas.configure(scrollregion=self.tables_canvas.bbox("all"))
 
     def on_single_click(self, event):
         tree = event.widget
