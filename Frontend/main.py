@@ -1,9 +1,7 @@
 import asyncio
-import tkinter as tk
+from tkinter import *
 from tkinter import filedialog, messagebox, ttk
-from tkinter.simpledialog import askstring
 
-# Import the necessary components from your provided module
 from TrackManager import TrackManager
 
 class TrackManagerGUI:
@@ -11,7 +9,7 @@ class TrackManagerGUI:
     data_mapping = {
         "file_path": {"source_object":"track_details", "property":"file_path", "display_name":"File Path", "width":100, "editable":False, "display":False},
         "update_file": {"source_object":"track_details", "property":"update_file", "display_name":"Update", "width":100, "editable":False, "display":False},
-        "title": {"source_object":"track_details", "property":"title", "display_name":"Track Title", "width":100, "editable":False, "display":True},
+        "title": {"source_object":"track_details", "property":"title", "display_name":"Track Title", "width":100, "editable":False, "display":False},
         "original_title": {"source_object":"track_details", "property":"original_title", "display_name":"Orig Title", "width":100, "editable":False, "display":False},
         "artist": {"source_object":"track_details", "property":"artist", "display_name":"Artist", "width":100, "editable":True, "display":True},
         "artist_sort": {"source_object":"mbartist_details", "property":"sort_name", "display_name":"Sort Artist", "width":100, "editable":False, "display":False},
@@ -35,48 +33,48 @@ class TrackManagerGUI:
         self.item_to_object = {}
         self.setup_ui()
 
-    def setup_widgets(self):
-        # Frame for the directory selection
-        self.frame = ttk.Frame(self.root)
-        self.frame.pack(padx=10, pady=10)
-
-        # Button to choose directory
-        self.btn_select_dir = ttk.Button(self.frame, text="Select Folder", command=self.load_directory)
-        self.btn_select_dir.pack(side=tk.LEFT)
-
-        # Listbox to display files
-        self.file_listbox = tk.Listbox(self.root)
-        self.file_listbox.pack(expand=True, fill=tk.BOTH, padx=10, pady=10)
-
-        # Scrollbar for the listbox
-        self.scrollbar = ttk.Scrollbar(self.root, orient='vertical', command=self.file_listbox.yview)
-        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        self.file_listbox.config(yscrollcommand=self.scrollbar.set)
-
-    def setup_table(self):
-        # Initialize the Treeview widget
-        self.tree = ttk.Treeview(self.root, columns=tuple(self.data_mapping.keys()), show='headings')
-        self.tree.pack(expand=True, fill=tk.BOTH, padx=10, pady=10)
-
-        display_columns = [column_id for column_id, settings in self.data_mapping.items() if settings.get("display", False)]
-        self.tree["displaycolumns"] = display_columns
-
-        # Set properties for each column
-        for column_id, settings in self.data_mapping.items():
-            self.tree.heading(column_id, text=settings["display_name"])
-            self.tree.column(column_id, width=settings["width"])
-
-        self.tree.bind("<Button-1>", self.on_single_click)
-        self.tree.bind("<Double-1>", self.on_double_click)
-
-        # Button to update metadata
-        self.update_button = ttk.Button(self.root, text="Save Changes", command=self.save_changes)
-        self.update_button.pack(pady=10)
-
     def setup_ui(self):
         self.root.title("Track Manager")
-        self.setup_widgets()
-        self.setup_table()
+        self.root.minsize(800,500)
+        self.setup_layout()
+
+    def setup_layout(self):
+
+        def table_canvas_configure_handler(e):
+            self.tables_canvas.configure(scrollregion=self.tables_canvas.bbox("all"))
+            self.tables_canvas.itemconfig(tables_canvas_window, width=e.width)
+
+        # main frame to hold elements
+        main_frame = Frame(self.root)
+        main_frame.pack(fill=BOTH, expand=True)
+        
+        self.tables_frame = Frame(main_frame)
+        self.tables_frame.pack(padx=10, pady=10, fill=BOTH, expand=True)
+
+        # frames don't support scrollbars by themselves, so we need to define a canvaas
+        self.tables_canvas = Canvas(self.tables_frame)
+        self.tables_canvas.pack(side=LEFT, fill=BOTH, expand=True)
+
+        # Add a scrollbar to the tables_frame
+        self.scrollbar = Scrollbar(self.tables_frame, orient=VERTICAL, command=self.tables_canvas.yview)
+        self.scrollbar.pack(side=RIGHT, fill=Y)
+
+        self.inner_frame = Frame(self.tables_canvas)
+        tables_canvas_window = self.tables_canvas.create_window((0, 0), window=self.inner_frame, anchor="nw")
+
+        self.tables_canvas.configure(yscrollcommand=self.scrollbar.set)
+        self.tables_canvas.bind('<Configure>', table_canvas_configure_handler)
+
+        self.buttons_frame = Frame(main_frame)
+        self.buttons_frame.pack(padx=10, pady=10, side=BOTTOM)
+
+        # Button to choose directory
+        self.btn_select_dir = Button(self.buttons_frame, text="Select Folder", command=self.load_directory)
+        self.btn_select_dir.pack(side=RIGHT)
+
+        # Button to update metadata
+        self.update_button = Button(self.buttons_frame, text="Save Changes", command=self.save_changes)
+        self.update_button.pack(pady=10, side=RIGHT)
 
     def load_directory(self):
         directory = filedialog.askdirectory()
@@ -84,18 +82,50 @@ class TrackManagerGUI:
             try:
                 self.track_manager = TrackManager()
                 asyncio.run(self.track_manager.load_directory(directory))
-                self.populate_table()
+                asyncio.run(self.track_manager.update_artists_info_from_db())
+                
+                self.populate_tables()
             except Exception as e:
                 messagebox.showerror("Error", str(e))
 
-    def populate_table(self):
-        # Clear existing items in the tree
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-        self.item_to_object.clear()
+    def populate_tables(self):
+        # Clear existing frames
+        for widget in self.inner_frame.winfo_children():
+            widget.destroy()
 
-        # Populate the tree with new data
+        # Populate a new table for each track
         for track in self.track_manager.tracks:
+            frame = Frame(self.inner_frame)
+            frame.pack(expand=True, fill=BOTH, padx=10, pady=10)
+
+            file_path_label = Label(frame, text=f"File Path: {track.file_path}")
+            file_path_label.pack()
+
+            title_label = Label(frame, text=f"Title: {track.title}")
+            title_label.pack()
+
+            tree = ttk.Treeview(frame, columns=tuple(self.data_mapping.keys()), show='headings')
+
+            tree_scroll = ttk.Scrollbar(frame, orient="vertical", command=tree.yview)
+            tree.configure(yscrollcommand=tree_scroll.set)
+
+            # tree.pack(expand=True, fill=BOTH, padx=10, pady=10)
+            tree.pack(side=LEFT, fill=BOTH, expand=True)
+            tree_scroll.pack(side=RIGHT, fill=Y)
+
+
+            display_columns = [column_id for column_id, settings in self.data_mapping.items() if settings.get("display", False)]
+            tree["displaycolumns"] = display_columns
+
+            # Set properties for each column
+            for column_id, settings in self.data_mapping.items():
+                tree.heading(column_id, text=settings["display_name"])
+                tree.column(column_id, width=settings["width"])
+
+            tree.bind("<Button-1>", self.on_single_click)
+            tree.bind("<Double-1>", self.on_double_click)
+
+            # Populate the tree with new data
             for artist_detail in track.mbArtistDetails:
                 values = []
                 for column_id, settings in self.data_mapping.items():
@@ -108,10 +138,10 @@ class TrackManagerGUI:
                     values.append(value)
 
                 # Insert the new row into the treeview
-                row = self.tree.insert("", "end", values=tuple(values))
+                row = tree.insert("", "end", values=tuple(values))
 
                 if "include" in self.data_mapping and self.data_mapping["include"]["source_object"] == "mbartist_details":
-                    self.tree.set(row, 'include', '☑' if artist_detail.include == True else '☐')
+                    tree.set(row, 'include', '☑' if artist_detail.include == True else '☐')
 
                 # Map the row to the corresponding objects for reference
                 self.item_to_object[row] = {"track": track, "artist_detail": artist_detail}
@@ -123,56 +153,58 @@ class TrackManagerGUI:
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
-    def get_clicked_cell(self, event):
-        region = self.tree.identify("region", event.x, event.y)
+    def get_clicked_cell(self, event, tree):
+        region = tree.identify("region", event.x, event.y)
 
         if(region != "cell"):
             return None
         
         return {
-            "row": self.tree.identify_row(event.y),
-            "column": self.tree.identify_column(event.x)
+            "row": tree.identify_row(event.y),
+            "column": tree.identify_column(event.x)
         }
 
     def on_single_click(self, event):
-        clicked = self.get_clicked_cell(event)
+        tree = event.widget
+        clicked = self.get_clicked_cell(event, tree)
         if (clicked == None):
             return
             
         # include is the only column that changes its value on a single click,
         # so it needs to be treated differently
-        if ((self.tree.column(clicked["column"])["id"] == "include") and 
-            (self.data_mapping[self.tree.column(clicked["column"])["id"]]["editable"] == True)):
+        if ((tree.column(clicked["column"])["id"] == "include") and 
+            (self.data_mapping[tree.column(clicked["column"])["id"]]["editable"] == True)):
             
             row_track = self.item_to_object.get(clicked["row"])
             if (None == row_track):
                 raise Exception("Row has no track details.")
             
-            current_value = self.tree.set(clicked["row"], clicked["column"])
+            current_value = tree.set(clicked["row"], clicked["column"])
             # clicking doesn't automatically change the value, so we need to flip it
             new_value = False if current_value == '☑' else True
 
-            valueChanged = self.save_value_to_manager(new_value, self.tree.column(clicked["column"])["id"], row_track["track"], row_track["artist_detail"])
+            valueChanged = self.save_value_to_manager(new_value, tree.column(clicked["column"])["id"], row_track["track"], row_track["artist_detail"])
             if(valueChanged == True):
-                self.populate_table()
+                self.populate_tables()
 
     def on_double_click(self, event):
-        clicked = self.get_clicked_cell(event)
+        tree = event.widget
+        clicked = self.get_clicked_cell(event, tree)
         if(clicked == None):
             return
 
-        if (self.data_mapping[self.tree.column(clicked["column"])["id"]]["editable"] == True):
-            self.edit_cell(clicked["row"], clicked["column"], event)
+        if (self.data_mapping[tree.column(clicked["column"])["id"]]["editable"] == True):
+            self.edit_cell(clicked["row"], clicked["column"], event, tree)
 
-    def edit_cell(self, row, column, event):
-        entry = ttk.Entry(self.root, width=10)
+    def edit_cell(self, row, column, event, tree):
+        entry = Entry(self.root, width=10)
         entry.place(x=event.x, y=event.y)
-        entry.insert(0, self.tree.set(row, column))
+        entry.insert(0, tree.set(row, column))
         entry.focus()
 
         def save_new_value(event):
             new_value = entry.get()
-            self.tree.set(row, column=column, value=entry.get())
+            tree.set(row, column=column, value=entry.get())
             entry.destroy()
 
             # Update the underlying data structure
@@ -180,10 +212,10 @@ class TrackManagerGUI:
             if (None == row_track):
                 raise Exception("Row has no track details.")
             
-            valueChanged = self.save_value_to_manager(new_value, self.tree.column(column)["id"], row_track["track"], row_track["artist_detail"])
+            valueChanged = self.save_value_to_manager(new_value, tree.column(column)["id"], row_track["track"], row_track["artist_detail"])
             
             if(valueChanged == True):
-                self.populate_table()
+                self.populate_tables()
 
         entry.bind("<Return>", save_new_value)
         entry.bind("<FocusOut>", save_new_value)
@@ -214,7 +246,7 @@ class TrackManagerGUI:
         loop.run_until_complete(async_func(*args, **kwargs))
 
 def main():
-    root = tk.Tk()
+    root = Tk()
     app = TrackManagerGUI(root)
     root.mainloop()
 
