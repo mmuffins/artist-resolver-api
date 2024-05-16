@@ -35,7 +35,7 @@ class TrackManagerGUI:
 
     def setup_ui(self):
         self.root.title("Track Manager")
-        self.root.minsize(800,500)
+        self.root.minsize(500,500)
         self.setup_layout()
 
     def setup_layout(self):
@@ -106,13 +106,13 @@ class TrackManagerGUI:
 
             tree = ttk.Treeview(frame, columns=tuple(self.data_mapping.keys()), show='headings')
 
-            tree_scroll = ttk.Scrollbar(frame, orient="vertical", command=tree.yview)
-            tree.configure(yscrollcommand=tree_scroll.set)
+            # Calculate the appropriate height based on the number of rows
+            num_rows = len(track.mbArtistDetails)
+            row_height = 20  # Height of each row in pixels
+            tree_height = min(num_rows, 10) * row_height  # Max height to show 10 rows at a time
 
-            # tree.pack(expand=True, fill=BOTH, padx=10, pady=10)
-            tree.pack(side=LEFT, fill=BOTH, expand=True)
-            tree_scroll.pack(side=RIGHT, fill=Y)
-
+            tree.pack(expand=True, fill=X, padx=10, pady=10)
+            tree["height"] = num_rows
 
             display_columns = [column_id for column_id, settings in self.data_mapping.items() if settings.get("display", False)]
             tree["displaycolumns"] = display_columns
