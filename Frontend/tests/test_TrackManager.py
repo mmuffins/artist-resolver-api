@@ -455,3 +455,88 @@ async def test_save_file_metadata_partial_changes(mock_id3_tags):
     mock_id3_instance.__setitem__.assert_has_calls(expected_setitem_calls, any_order=True)
     mock_id3_instance.pop.assert_has_calls(expected_pop_calls, any_order=True)
     mock_id3_instance.save.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_get_formatted_artist():
+    # Test case where custom_name is not None or empty
+    artist = MbArtistDetails(
+        name="Original Artist",
+        type="Person",
+        disambiguation="",
+        sort_name="Original Artist",
+        id="mock-id-1",
+        aliases=[],
+        type_id="type-id-1",
+        joinphrase=""
+    )
+    artist.custom_name = "Custom Artist"
+    assert artist.get_formatted_artist() == "Custom Artist", "Failed when custom_name is set"
+
+    # Test case where custom_name is None
+    artist.custom_name = None
+    assert artist.get_formatted_artist() == "Original Artist", "Failed when custom_name is None"
+
+    # Test case where custom_name is empty
+    artist.custom_name = ""
+    assert artist.get_formatted_artist() == "Original Artist", "Failed when custom_name is empty"
+
+    # Test case where type is "character"
+    artist.type = "character"
+    artist.custom_name = "Custom Character"
+    assert artist.get_formatted_artist() == "(Custom Character)", "Failed when type is 'character'"
+
+    # Test case where type is "group"
+    artist.type = "group"
+    artist.custom_name = "Custom Group"
+    assert artist.get_formatted_artist() == "(Custom Group)", "Failed when type is 'group'"
+
+@pytest.mark.asyncio
+async def test_get_artist_string():
+    # Arrange
+    manager = TrackManager()
+    track = TrackDetails("/fake/path/file1.mp3", manager)
+
+    artist1 = MbArtistDetails(
+        name="Artist1",
+        type="Person",
+        disambiguation="",
+        sort_name="Artist1, Firstname",
+        id="mock-artist1-id",
+        aliases=[],
+        type_id="b6e035f4-3ce9-331c-97df-83397230b0df",
+        joinphrase=""
+    )
+    artist1.custom_name = "Custom Artist1"
+
+    artist2 = MbArtistDetails(
+        name="Artist2",
+        type="character",
+        disambiguation="",
+        sort_name="Artist2, Firstname",
+        id="mock-artist2-id",
+        aliases=[],
+        type_id="b6e035f4-3ce9-331c-97df-83397230b0df",
+        joinphrase=""
+    )
+    artist2.custom_name = "Custom Character2"
+
+    track.mbArtistDetails = [artist1, artist2]
+
+    # Act
+    concatenated_string = track.get_artist_string()
+
+    # Assert
+    assert concatenated_string == "Custom Artist1; (Custom Character2)", "Failed to concatenate artist details correctly"
+
+@pytest.mark.asyncio
+async def test_gget_artist_string_empty():
+    # Arrange
+    manager = TrackManager()
+    track = TrackDetails("/fake/path/file2.mp3", manager)
+    track.mbArtistDetails = []
+
+    # Act
+    concatenated_string = track.get_artist_string()
+
+    # Assert
+    assert concatenated_string == "", "Failed to handle empty artist details list correctly"

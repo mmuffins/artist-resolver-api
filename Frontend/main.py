@@ -19,9 +19,9 @@ class TrackManagerGUI:
         "original_album": {"source_object":"track_details", "property":"original_album", "display_name":"Orig Album", "width":100, "editable":False, "display":False},
         "album_artist": {"source_object":"track_details", "property":"album_artist", "display_name":"Album Artist", "width":100, "editable":False, "display":False},
         "grouping": {"source_object":"track_details", "property":"grouping", "display_name":"Grouping", "width":100, "editable":False, "display":False},
-        "include": {"source_object":"mbartist_details", "property":"include", "display_name":"Set", "width":100, "editable":True, "display":True},
+        "include": {"source_object":"mbartist_details", "property":"include", "display_name":"Set", "width":10, "editable":True, "display":True},
         "mbid": {"source_object":"mbartist_details", "property":"mbid", "display_name":"MBID", "width":100, "editable":False, "display":False},
-        "type": {"source_object":"mbartist_details", "property":"type", "display_name":"Type", "width":100, "editable":False, "display":False},
+        "type": {"source_object":"mbartist_details", "property":"type", "display_name":"Type", "width":100, "editable":False, "display":True},
         "joinphrase": {"source_object":"mbartist_details", "property":"joinphrase", "display_name":"Join Phrase", "width":100, "editable":False, "display":False},
         "custom_name": {"source_object":"mbartist_details", "property":"custom_name", "display_name":"Custom Name", "width":100, "editable":True, "display":True},
         "custom_original_name": {"source_object":"mbartist_details", "property":"custom_original_name", "display_name":"Custom Orig Name", "width":100, "editable":True, "display":True}
@@ -36,7 +36,7 @@ class TrackManagerGUI:
     def setup_ui(self):
         self.root.title("Track Manager")
         self.root.geometry("700x380")
-        self.root.minsize(500,380)
+        self.root.minsize(800,400)
         self.root.resizable(True, True)
         self.setup_layout()
 
@@ -102,6 +102,10 @@ class TrackManagerGUI:
 
             title_label = Label(frame, text=f"Title: {track.title}")
             title_label.pack()
+
+            formatted_artist = track.get_artist_string()
+            formatted_artist_label = Label(frame, text=f"Artist: {formatted_artist}")
+            formatted_artist_label.pack()
 
             tree = ttk.Treeview(frame, columns=tuple(self.data_mapping.keys()), show='headings')
 

@@ -2,8 +2,6 @@
 # TODO: Make type editable. Should be a dropdown with Person, Character, Group
 # TODO: check if aliases can be used for better naming predictions
 # TODO: fix that the popup to enter new values is floating in space
-# TODO: move buttons to bottom
-# TODO: make separate table for each song
 # TODO: Infer album artist from file path
 # TODO: make gui nicer looking
 # TODO: colors -> grey out rows where included is disabled
@@ -73,6 +71,15 @@ class MbArtistDetails:
   
   def __repr__(self):
     return	f"{self.name}"
+  
+  def get_formatted_artist(self) -> str:
+    """
+    Returns a formatted string representing the instance.
+    """
+    display_name = self.custom_name if self.custom_name else self.name
+    if self.type.lower() in ["character", "group"]:
+      return f"({display_name})"
+    return display_name
   
   def update_from_customization(self, data: dict) -> None:
     """
@@ -306,6 +313,7 @@ class TrackDetails:
     self.product = None
     self.artist_relations = None
     self.update_file: bool = True
+    self.mbArtistDetails: List[MbArtistDetails] = []
     
   def __str__(self):
     return	f"{self.title}"
@@ -313,6 +321,13 @@ class TrackDetails:
   def __repr__(self):
     return	f"{self.title}"
     
+  def get_artist_string(self) -> str:
+    """
+    Returns a formatted string for all artists of the object
+    """
+    formatted_strings = [artist.get_formatted_artist() for artist in self.mbArtistDetails]
+    return "; ".join(formatted_strings)
+
   async def read_file_metadata(self) -> None:
     """
     Reads mp3 tags from a file
