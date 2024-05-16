@@ -297,7 +297,6 @@ async def test_parse_artist_json_with_nested_objects():
 @pytest.mark.asyncio
 async def test_save_file_metadata_no_changes(mock_id3_tags):
     # Arrange
-
     track = TrackDetails("/fake/path/file1.mp3", TrackManager())
     track.title = "Same Title"
     track.artist = "Same Artist"
@@ -319,6 +318,8 @@ async def test_save_file_metadata_no_changes(mock_id3_tags):
         'TOPE': TOPE(encoding=3, text="Same Original Artist"),
         'TPE3': TPE3(encoding=3, text="Same Original Title"),
     })
+
+    track.get_artist_string = MagicMock(return_value="Same Artist")
 
     # Act
     track.save_file_metadata()
@@ -352,13 +353,15 @@ async def test_save_file_metadata_changes(mock_id3_tags):
         'TPE3': TPE3(encoding=3, text="Old Original Title"),
     })
 
+    track.get_artist_string = MagicMock(return_value="New Artist")
+
     # Act
     track.save_file_metadata()
 
     # Assert
     expected_setitem_calls = [
         call('TIT2', TIT2(encoding=3, text=track.title)),
-        call('TPE1', TPE1(encoding=3, text=track.artist)),
+        call('TPE1', TPE1(encoding=3, text=track.get_artist_string())),
         call('TALB', TALB(encoding=3, text=track.album)),
         call('TPE2', TPE2(encoding=3, text=track.album_artist)),
         call('TIT1', TIT1(encoding=3, text=track.grouping)),
@@ -395,6 +398,8 @@ async def test_save_file_metadata_clear_tags(mock_id3_tags):
         'TPE3': TPE3(encoding=3, text="Old Original Title"),
     })
 
+    track.get_artist_string = MagicMock(return_value=None)
+
     # Act
     track.save_file_metadata()
 
@@ -418,7 +423,7 @@ async def test_save_file_metadata_partial_changes(mock_id3_tags):
     # Arrange
     track = TrackDetails("/fake/path/file1.mp3", TrackManager())
     track.title = "New Title"
-    track.artist = "Old Artist"
+    track.artist = "New Artist"
     track.album = "New Album"
     track.album_artist = "Old Album Artist"
     track.grouping = "New Grouping"
@@ -438,12 +443,15 @@ async def test_save_file_metadata_partial_changes(mock_id3_tags):
         'TPE3': TPE3(encoding=3, text="Old Original Title"),
     })
 
+    track.get_artist_string = MagicMock(return_value="New Artist")
+
     # Act
     track.save_file_metadata()
 
     # Assert
     expected_setitem_calls = [
         call('TIT2', TIT2(encoding=3, text=track.title)),
+        call('TPE1', TPE1(encoding=3, text=track.get_artist_string())),
         call('TALB', TALB(encoding=3, text=track.album)),
         call('TIT1', TIT1(encoding=3, text=track.grouping))
     ]
@@ -507,6 +515,7 @@ async def test_get_artist_string():
         joinphrase=""
     )
     artist1.custom_name = "Custom Artist1"
+    artist1.include = True
 
     artist2 = MbArtistDetails(
         name="Artist2",
@@ -519,8 +528,22 @@ async def test_get_artist_string():
         joinphrase=""
     )
     artist2.custom_name = "Custom Character2"
+    artist2.include = True
 
-    track.mbArtistDetails = [artist1, artist2]
+    artist3 = MbArtistDetails(
+        name="Artist3",
+        type="group",
+        disambiguation="",
+        sort_name="Artist3, Firstname",
+        id="mock-artist3-id",
+        aliases=[],
+        type_id="b6e035f4-3ce9-331c-97df-83397230b0df",
+        joinphrase=""
+    )
+    artist3.custom_name = "Custom Group3"
+    artist3.include = False  # This artist should be excluded
+
+    track.mbArtistDetails = [artist1, artist2, artist3]
 
     # Act
     concatenated_string = track.get_artist_string()
@@ -529,7 +552,7 @@ async def test_get_artist_string():
     assert concatenated_string == "Custom Artist1; (Custom Character2)", "Failed to concatenate artist details correctly"
 
 @pytest.mark.asyncio
-async def test_gget_artist_string_empty():
+async def test_get_artist_string_empty():
     # Arrange
     manager = TrackManager()
     track = TrackDetails("/fake/path/file2.mp3", manager)

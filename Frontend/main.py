@@ -151,7 +151,9 @@ class TrackManagerGUI:
 
     def save_changes(self):
         try:
+            asyncio.run(self.track_manager.send_changes_to_db())
             asyncio.run(self.track_manager.save_files())
+            self.populate_tables()
             messagebox.showinfo("Success", "Metadata saved successfully!")
         except Exception as e:
             messagebox.showerror("Error", str(e))

@@ -325,7 +325,8 @@ class TrackDetails:
     """
     Returns a formatted string for all artists of the object
     """
-    formatted_strings = [artist.get_formatted_artist() for artist in self.mbArtistDetails]
+
+    formatted_strings = [artist.get_formatted_artist() for artist in self.mbArtistDetails if artist.include == True]
     return "; ".join(formatted_strings)
 
   async def read_file_metadata(self) -> None:
@@ -362,6 +363,13 @@ class TrackDetails:
 
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, lambda: id3.ID3(file_path))
+
+  def apply_custom_tag_values(self) -> None:
+    """
+    Applies customized values to the main tags
+    """
+
+    self.artist = self.get_artist_string() or self.artist
 
   def save_file_metadata(self) -> None:
     """
@@ -425,7 +433,12 @@ class TrackManager:
     """
 
     loop = asyncio.get_event_loop()
-    await asyncio.gather(*(loop.run_in_executor(None, track.save_file_metadata) for track in self.tracks))
+    
+    for track in self.tracks:
+      if track.update_file == True:
+        track.apply_custom_tag_values()
+
+    await asyncio.gather(*(loop.run_in_executor(None, track.save_file_metadata) for track in self.tracks if track.update_file == True))
 
   async def read_file_metadata(self) -> None:
     """

@@ -22,7 +22,7 @@
       "name": "Run gui",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/main2.py",
+      "program": "${workspaceFolder}/main.py",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal"
     },
