@@ -158,6 +158,41 @@ namespace Tests.Integrationtests
         }
 
         [Fact]
+        public async Task Post_Empty_OriginalName()
+        {
+            var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // Add test data
+            var artList = GenerateMbArtists(1);
+
+            foreach (var art in artList)
+            {
+                art.OriginalName = null;
+                var jsonString = new StringContent(JsonSerializer.Serialize(new
+                {
+                    art.MbId,
+                    art.Name,
+                    art.OriginalName,
+                    art.Include
+                }), Encoding.UTF8, "application/json");
+
+                var postResponse = await client.PostAsync(mbArtistEndpoint, jsonString);
+                postResponse.EnsureSuccessStatusCode();
+
+                var postResponseObj = JsonSerializer.Deserialize<MbArtistResource>(await postResponse.Content.ReadAsStringAsync(), JsonOptions);
+                Assert.Equal(art.Name, postResponseObj.Name);
+            }
+
+            // Verify
+            var httpResponse = await client.GetAsync(mbArtistEndpoint);
+            httpResponse.EnsureSuccessStatusCode();
+
+            // Deserialize and examine results.
+            var verifyList = JsonSerializer.Deserialize<IEnumerable<MbArtistResource>>(await httpResponse.Content.ReadAsStringAsync(), JsonOptions);
+            Assert.Single(verifyList.Where(x => x.Name.Equals(artList[0].Name)));
+        }
+
+        [Fact]
         public async Task Delete()
         {
             // Add test data

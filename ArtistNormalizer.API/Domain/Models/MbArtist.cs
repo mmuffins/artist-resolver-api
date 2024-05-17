@@ -12,7 +12,6 @@ namespace ArtistNormalizer.API.Domain.Models
         public string MbId { get; set; }
         [Required]
         public string Name { get; set; }
-        [Required]
         public string OriginalName { get; set; }
         [Required]
         public bool Include { get; set; }

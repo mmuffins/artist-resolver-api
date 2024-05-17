@@ -76,7 +76,10 @@ namespace ArtistNormalizer.API.Controllers
 
             resource.MbId = resource.MbId.Trim();
             resource.Name = resource.Name.Trim();
-            resource.OriginalName = resource.OriginalName.Trim();
+            if (null  != resource.OriginalName)
+            {
+                resource.OriginalName = resource.OriginalName.Trim();
+            }
 
             MbArtist resolvedArtist = (await mbArtistService.ListAsync(null, resource.MbId)).FirstOrDefault();
             if (resolvedArtist != null)
