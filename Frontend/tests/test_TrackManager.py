@@ -110,16 +110,16 @@ def create_mock_trackdetails():
     Returns a track details object with dummy values
     """
     track = TrackDetails("/fake/path/file1.mp3", TrackManager())
-    track.title = "test title"
-    track.artist = "test artist1"
-    track.album = "test album"
-    track.album_artist = "test album_artist"
-    track.grouping = "test grouping"
-    track.original_album = "test original_album"
-    track.original_artist = "test original_artist"
-    track.original_title = "test original_title"
-    track.product = "test product"
-    track.artist_relations = "test artist_relations"
+    track.title = ["test title"]
+    track.artist = ["test artist1"]
+    track.album = ["test album"]
+    track.album_artist = ["test album_artist"]
+    track.grouping = ["test grouping"]
+    track.original_album = ["test original_album"]
+    track.original_artist = ["test original_artist"]
+    track.original_title = ["test original_title"]
+    track.product = ["test product"]
+    track.artist_relations = ["test artist_relations"]
     
     return track
 
@@ -156,14 +156,14 @@ async def test_create_track_file_with_artist_json(mock_id3_tags):
     reference_track.product = None
 
     mock_id3_instance = mock_id3_tags({
-        "TIT2": [reference_track.title],
-        "TPE1": [reference_track.artist],
-        "TALB": [reference_track.album],
-        "TPE2": [reference_track.album_artist],
-        "TIT1": [reference_track.grouping],
-        "TOAL": [reference_track.original_album],
-        "TOPE": [reference_track.original_artist],
-        "TPE3": [reference_track.original_title],
+        "TIT2": reference_track.title,
+        "TPE1": reference_track.artist,
+        "TALB": reference_track.album,
+        "TPE2": reference_track.album_artist,
+        "TIT1": reference_track.grouping,
+        "TOAL": reference_track.original_album,
+        "TOPE": reference_track.original_artist,
+        "TPE3": reference_track.original_title,
     })
     
     mbid = "mock-93fb-4bc3-8ff9-065c75c4f90a"
@@ -190,14 +190,14 @@ async def test_create_track_file_with_artist_json(mock_id3_tags):
     await track.read_file_metadata()
 
     # Assert
-    assert track.title == reference_track.title
-    assert track.artist == reference_track.artist
-    assert track.album == reference_track.album
-    assert track.album_artist == reference_track.album_artist
-    assert track.grouping == reference_track.grouping
-    assert track.original_album == reference_track.original_album
-    assert track.original_artist == reference_track.original_artist
-    assert track.original_title == reference_track.original_title
+    assert track.title == reference_track.title[0]
+    assert track.artist == reference_track.artist[0]
+    assert track.album == reference_track.album[0]
+    assert track.album_artist == reference_track.album_artist[0]
+    assert track.grouping == reference_track.grouping[0]
+    assert track.original_album == reference_track.original_album[0]
+    assert track.original_artist == reference_track.original_artist[0]
+    assert track.original_title == reference_track.original_title[0]
     assert track.product == reference_track.product
 
 @pytest.mark.asyncio
@@ -206,17 +206,18 @@ async def test_create_track_file_without_artist_json(respx_mock, mock_id3_tags):
     # Arrange
     reference_track = create_mock_trackdetails()
     reference_track.product = "_"
+    reference_track.artist = ["test artist1", "(Character 1)"]
 
     # mock individual id3 calls
     mock_id3_instance = mock_id3_tags({
-        "TIT2": [reference_track.title],
-        "TPE1": [reference_track.artist],
-        "TALB": [reference_track.album],
-        "TPE2": [reference_track.album_artist],
-        "TIT1": [reference_track.grouping],
-        "TOAL": [reference_track.original_album],
-        "TOPE": [reference_track.original_artist],
-        "TPE3": [reference_track.original_title],
+        "TIT2": reference_track.title,
+        "TPE1": reference_track.artist,
+        "TALB": reference_track.album,
+        "TPE2": reference_track.album_artist,
+        "TIT1": reference_track.grouping,
+        "TOAL": reference_track.original_album,
+        "TOPE": reference_track.original_artist,
+        "TPE3": reference_track.original_title,
     })
     
     # id3.getall("TXXX") returns an empty array to trigger creating simple artist
@@ -243,15 +244,15 @@ async def test_create_track_file_without_artist_json(respx_mock, mock_id3_tags):
     await track.read_file_metadata()
 
     # Assert
-    assert track.title == reference_track.title
+    assert track.title == reference_track.title[0]
     assert track.artist == reference_track.artist
-    assert track.album == reference_track.album
-    assert track.album_artist == reference_track.album_artist
-    assert track.grouping == reference_track.grouping
-    assert track.original_album == reference_track.original_album
-    assert track.original_artist == reference_track.original_artist
-    assert track.original_title == reference_track.original_title
-    assert track.product == reference_track.product
+    assert track.album == reference_track.album[0]
+    assert track.album_artist == reference_track.album_artist[0]
+    assert track.grouping == reference_track.grouping[0]
+    assert track.original_album == reference_track.original_album[0]
+    assert track.original_artist == reference_track.original_artist[0]
+    assert track.original_title == reference_track.original_title[0]
+    assert track.product == reference_track.product[0]
 
 @pytest.mark.asyncio
 @respx.mock(assert_all_mocked=True)

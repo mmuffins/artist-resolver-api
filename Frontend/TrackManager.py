@@ -179,8 +179,11 @@ class SimpleArtistDetails(MbArtistDetails):
       type_id=None,
       joinphrase=None,
       product = product,
-      product_id = product_id
+      product_id = product_id,
     )
+
+    simple_artist.custom_name = artist["name"]
+    simple_artist.custom_original_name = None
 
     return simple_artist
   
