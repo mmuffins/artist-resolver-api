@@ -10,7 +10,6 @@ namespace ArtistNormalizer.API.Resources
         [Required]
         public string Name { get; set; }
 
-        [Required]
         public string OriginalName { get; set; }
 
         [Required]
