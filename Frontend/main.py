@@ -61,11 +61,6 @@ class TrackManagerGUI:
         self.inner_frame = Frame(self.tables_canvas)
         self.tables_canvas_window = self.tables_canvas.create_window((0, 0), window=self.inner_frame, anchor="nw")
 
-        self.tables_canvas.configure(yscrollcommand=self.scrollbar.set)
-        self.tables_canvas.bind('<Configure>', self.on_canvas_configure)
-
-        self.inner_frame.bind('<Configure>', self.on_inner_frame_configure)
-
         self.buttons_frame = Frame(main_frame)
         self.buttons_frame.pack(padx=10, pady=10, side=BOTTOM)
 
@@ -76,6 +71,12 @@ class TrackManagerGUI:
         # Button to update metadata
         self.update_button = Button(self.buttons_frame, text="Save Changes", command=self.save_changes)
         self.update_button.pack(pady=10, side=RIGHT)
+
+        self.tables_canvas.configure(yscrollcommand=self.scrollbar.set)
+        self.tables_canvas.bind('<Configure>', self.on_canvas_configure)
+        self.tables_canvas.bind_all('<MouseWheel>', self.on_mousewheel)
+        self.inner_frame.bind('<Configure>', self.on_inner_frame_configure)
+
 
     def load_directory(self):
         directory = filedialog.askdirectory()
@@ -177,6 +178,9 @@ class TrackManagerGUI:
     def on_inner_frame_configure(self, e):
         self.tables_canvas.configure(scrollregion=self.tables_canvas.bbox("all"))
         
+    def on_mousewheel(self, event):
+        self.tables_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+
     def on_single_click(self, event):
         tree = event.widget
         clicked = self.get_clicked_cell(event, tree)
