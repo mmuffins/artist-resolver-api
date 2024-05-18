@@ -1,11 +1,9 @@
 # TODO: check if aliases can be used for better naming predictions
-# TODO: fix that the popup to enter new values is floating in space
 # TODO: Infer album artist from file path
 # TODO: make gui nicer looking
 # TODO: colors -> grey out rows where included is disabled
 # TODO: colors -> have specific color for values loaded from the db
 # TODO: colors -> highlight colors that are different from the current id tag / were edited
-# TODO: include relation type in original artist_json from picard to be able to filter out sibling relation type
 # TODO: make gui display error if rest calls fail
 # TODO: Add buttons for common tasks, e.g. copy title to original title
 
@@ -1032,7 +1030,7 @@ async def main() -> None:
   await manager.load_directory(dir)
   await manager.update_artists_info_from_db()
   # await manager.send_changes_to_db()
-  await manager.save_files()
+  # await manager.save_files()
 
 if __name__ == "__main__":
   asyncio.run(main())

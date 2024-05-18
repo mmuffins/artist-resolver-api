@@ -39,6 +39,7 @@ class TrackManagerGUI:
         self.root.geometry("700x380")
         self.root.minsize(800,400)
         self.root.resizable(True, True)
+
         self.setup_layout()
 
     def setup_layout(self):
@@ -175,7 +176,7 @@ class TrackManagerGUI:
     
     def on_inner_frame_configure(self, e):
         self.tables_canvas.configure(scrollregion=self.tables_canvas.bbox("all"))
-
+        
     def on_single_click(self, event):
         tree = event.widget
         clicked = self.get_clicked_cell(event, tree)
@@ -199,6 +200,7 @@ class TrackManagerGUI:
             if(valueChanged == True):
                 self.populate_tables()
 
+
     def on_double_click(self, event):
         tree = event.widget
         clicked = self.get_clicked_cell(event, tree)
@@ -209,28 +211,36 @@ class TrackManagerGUI:
             self.edit_cell(clicked["row"], clicked["column"], event, tree)
 
     def edit_cell(self, row, column, event, tree):
-        entry = Entry(self.root, width=10)
-        entry.place(x=event.x, y=event.y)
-        entry.insert(0, tree.set(row, column))
-        entry.focus()
+        # Create the Entry widget and place it at the cell position
+        x, y, w, h = tree.bbox(row, column)
+
+        entry = Entry(tree)
+        entry.place(x=x, y=y, width=w, height=h)
+        entry.insert(END, tree.set(row, column))
+        entry.focus_set()
+        entry.select_range(0, END)
 
         def save_new_value(event):
             new_value = entry.get()
-            tree.set(row, column=column, value=entry.get())
+            tree.set(row, column=column, value=new_value)
             entry.destroy()
 
             # Update the underlying data structure
             row_track = self.item_to_object.get(row)
-            if (None == row_track):
+            if row_track is None:
                 raise Exception("Row has no track details.")
             
-            valueChanged = self.save_value_to_manager(new_value, tree.column(column)["id"], row_track["track"], row_track["artist_detail"])
+            value_changed = self.save_value_to_manager(new_value, tree.column(column)["id"], row_track["track"], row_track["artist_detail"])
             
-            if(valueChanged == True):
+            if value_changed:
                 self.populate_tables()
+        
+        def close_without_saving(event):
+            entry.destroy()
 
         entry.bind("<Return>", save_new_value)
         entry.bind("<FocusOut>", save_new_value)
+        entry.bind("<Escape>", close_without_saving)
 
     def save_value_to_manager(self, new_value, column_id:str, track_details, mbartist_details) -> bool:
         if column_id not in self.data_mapping:
@@ -251,7 +261,6 @@ class TrackManagerGUI:
         # Update the value
         setattr(source_obj, mapping["property"], new_value)
         return True
-
 
     def run_sync(self, async_func, *args, **kwargs):
         loop = asyncio.get_event_loop()
