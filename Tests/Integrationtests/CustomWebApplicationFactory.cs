@@ -1,5 +1,5 @@
-﻿using ArtistNormalizer.API;
-using ArtistNormalizer.API.Persistence.Contexts;
+﻿using ArtistResolver.API;
+using ArtistResolver.API.Persistence.Contexts;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;

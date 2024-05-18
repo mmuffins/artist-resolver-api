@@ -1,6 +1,6 @@
-﻿using ArtistNormalizer.API;
-using ArtistNormalizer.API.Domain.Models;
-using ArtistNormalizer.API.Resources;
+﻿using ArtistResolver.API;
+using ArtistResolver.API.Domain.Models;
+using ArtistResolver.API.Resources;
 using System;
 using System.Collections.Generic;
 using System.Linq;

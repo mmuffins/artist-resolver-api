@@ -1,7 +1,7 @@
-﻿using ArtistNormalizer.API;
-using ArtistNormalizer.API.Domain.Models;
-using ArtistNormalizer.API.Persistence.Contexts;
-using ArtistNormalizer.API.Resources;
+﻿using ArtistResolver.API;
+using ArtistResolver.API.Domain.Models;
+using ArtistResolver.API.Persistence.Contexts;
+using ArtistResolver.API.Resources;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;

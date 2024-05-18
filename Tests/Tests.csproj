@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ArtistNormalizer.API\ArtistNormalizer.API.csproj" />
+    <ProjectReference Include="..\ArtistResolver.API\ArtistResolver.API.csproj" />
   </ItemGroup>
 
 </Project>
