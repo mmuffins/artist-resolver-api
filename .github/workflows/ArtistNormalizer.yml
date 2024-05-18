@@ -138,7 +138,7 @@ jobs:
     - name: Build and push
       uses: docker/build-push-action@v5
       with:
-        context: "${{ github.workspace }}"
+        context: "${{ github.workspace }}/ArtistResolver.API"
         push: true
         platforms: linux/amd64
         tags: |
