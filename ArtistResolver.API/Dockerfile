@@ -9,7 +9,7 @@ ENV DB_PATH=/db/artists.db
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["./ArtistResolver.API.csproj", "ArtistResolver.API/"]
+COPY ["ArtistResolver.API/ArtistResolver.API.csproj", "ArtistResolver.API/"]
 RUN dotnet restore "./ArtistResolver.API/ArtistResolver.API.csproj"
 COPY . .
 WORKDIR "/src/ArtistResolver.API"
