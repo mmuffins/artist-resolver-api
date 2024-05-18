@@ -191,12 +191,12 @@ async def test_create_track_file_with_artist_json(mock_id3_tags):
 
     # Assert
     assert track.title == reference_track.title[0]
-    assert track.artist == reference_track.artist[0]
+    assert track.artist == reference_track.artist
     assert track.album == reference_track.album[0]
     assert track.album_artist == reference_track.album_artist[0]
     assert track.grouping == reference_track.grouping[0]
     assert track.original_album == reference_track.original_album[0]
-    assert track.original_artist == reference_track.original_artist[0]
+    assert track.original_artist == reference_track.original_artist
     assert track.original_title == reference_track.original_title[0]
     assert track.product == reference_track.product
 
@@ -250,7 +250,7 @@ async def test_create_track_file_without_artist_json(respx_mock, mock_id3_tags):
     assert track.album_artist == reference_track.album_artist[0]
     assert track.grouping == reference_track.grouping[0]
     assert track.original_album == reference_track.original_album[0]
-    assert track.original_artist == reference_track.original_artist[0]
+    assert track.original_artist == reference_track.original_artist
     assert track.original_title == reference_track.original_title[0]
     assert track.product == reference_track.product[0]
 
@@ -300,23 +300,23 @@ async def test_save_file_metadata_no_changes(mock_id3_tags):
     # Arrange
     track = TrackDetails("/fake/path/file1.mp3", TrackManager())
     track.title = "Same Title"
-    track.artist = "Same Artist"
+    track.artist = ["Same Artist"]
     track.album = "Same Album"
     track.album_artist = "Same Album Artist"
     track.grouping = "Same Grouping"
     track.original_album = "Same Original Album"
-    track.original_artist = "Same Original Artist"
+    track.original_artist = ["Same Original Artist"]
     track.original_title = "Same Original Title"
     track.id3 = id3.ID3(track.file_path)
 
     mock_id3_instance = mock_id3_tags({
         'TIT2': TIT2(encoding=3, text="Same Title"),
-        'TPE1': TPE1(encoding=3, text="Same Artist"),
+        'TPE1': TPE1(encoding=3, text=["Same Artist"]),
         'TALB': TALB(encoding=3, text="Same Album"),
         'TPE2': TPE2(encoding=3, text="Same Album Artist"),
         'TIT1': TIT1(encoding=3, text="Same Grouping"),
         'TOAL': TOAL(encoding=3, text="Same Original Album"),
-        'TOPE': TOPE(encoding=3, text="Same Original Artist"),
+        'TOPE': TOPE(encoding=3, text=["Same Original Artist"]),
         'TPE3': TPE3(encoding=3, text="Same Original Title"),
     })
 
@@ -334,23 +334,23 @@ async def test_save_file_metadata_changes(mock_id3_tags):
     # Arrange
     track = TrackDetails("/fake/path/file1.mp3", TrackManager())
     track.title = "New Title"
-    track.artist = "New Artist"
+    track.artist = ["New Artist"]
     track.album = "New Album"
     track.album_artist = "New Album Artist"
     track.grouping = "New Grouping"
     track.original_album = "New Original Album"
-    track.original_artist = "New Original Artist"
+    track.original_artist = ["New Original Artist"]
     track.original_title = "New Original Title"
     track.id3 = id3.ID3(track.file_path)
 
     mock_id3_instance = mock_id3_tags({
         'TIT2': TIT2(encoding=3, text="Old Title"),
-        'TPE1': TPE1(encoding=3, text="Old Artist"),
+        'TPE1': TPE1(encoding=3, text=["Old Artist"]),
         'TALB': TALB(encoding=3, text="Old Album"),
         'TPE2': TPE2(encoding=3, text="Old Album Artist"),
         'TIT1': TIT1(encoding=3, text="Old Grouping"),
         'TOAL': TOAL(encoding=3, text="Old Original Album"),
-        'TOPE': TOPE(encoding=3, text="Old Original Artist"),
+        'TOPE': TOPE(encoding=3, text=["Old Original Artist"]),
         'TPE3': TPE3(encoding=3, text="Old Original Title"),
     })
 
@@ -390,12 +390,12 @@ async def test_save_file_metadata_clear_tags(mock_id3_tags):
 
     mock_id3_instance = mock_id3_tags({
         'TIT2': TIT2(encoding=3, text="Old Title"),
-        'TPE1': TPE1(encoding=3, text="Old Artist"),
+        'TPE1': TPE1(encoding=3, text=["Old Artist"]),
         'TALB': TALB(encoding=3, text="Old Album"),
         'TPE2': TPE2(encoding=3, text="Old Album Artist"),
         'TIT1': TIT1(encoding=3, text="Old Grouping"),
         'TOAL': TOAL(encoding=3, text="Old Original Album"),
-        'TOPE': TOPE(encoding=3, text="Old Original Artist"),
+        'TOPE': TOPE(encoding=3, text=["Old Original Artist"]),
         'TPE3': TPE3(encoding=3, text="Old Original Title"),
     })
 
@@ -424,23 +424,23 @@ async def test_save_file_metadata_partial_changes(mock_id3_tags):
     # Arrange
     track = TrackDetails("/fake/path/file1.mp3", TrackManager())
     track.title = "New Title"
-    track.artist = "New Artist"
+    track.artist = ["New Artist"]
     track.album = "New Album"
     track.album_artist = "Old Album Artist"
     track.grouping = "New Grouping"
     track.original_album = None
-    track.original_artist = "Old Original Artist"
+    track.original_artist = ["Old Original Artist"]
     track.original_title = None
     track.id3 = id3.ID3(track.file_path)
 
     mock_id3_instance = mock_id3_tags({
         'TIT2': TIT2(encoding=3, text="Old Title"),
-        'TPE1': TPE1(encoding=3, text="Old Artist"),
+        'TPE1': TPE1(encoding=3, text=["Old Artist"]),
         'TALB': TALB(encoding=3, text="Old Album"),
         'TPE2': TPE2(encoding=3, text="Old Album Artist"),
         'TIT1': TIT1(encoding=3, text="Old Grouping"),
         'TOAL': TOAL(encoding=3, text="Old Original Album"),
-        'TOPE': TOPE(encoding=3, text="Old Original Artist"),
+        'TOPE': TOPE(encoding=3, text=["Old Original Artist"]),
         'TPE3': TPE3(encoding=3, text="Old Original Title"),
     })
 

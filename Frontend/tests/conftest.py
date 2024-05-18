@@ -5,6 +5,8 @@ import respx
 import json
 from unittest.mock import AsyncMock, patch, MagicMock
 from TrackManager import TrackManager, MbArtistDetails, SimpleArtistDetails, TrackManager, TrackDetails
+from mutagen.id3 import TIT2, TPE1, TALB, TPE2, TIT1, TOAL, TOPE, TPE3
+
 
 @pytest.fixture
 def mock_id3_instance(mocker):
@@ -19,6 +21,10 @@ def mock_id3_instance(mocker):
     mocker.patch('TrackManager.TrackDetails.get_id3_object', return_value=mock_id3_instance)
     return mock_id3_instance
 
+class MockID3Tag:
+    def __init__(self, text):
+        self.text = text
+
 @pytest.fixture
 def mock_id3_tags(mock_id3_instance):
     """
@@ -26,8 +32,15 @@ def mock_id3_tags(mock_id3_instance):
     """
 
     def apply_mock(tags):
-        def id3_get_side_effect(tag, default):
-            return tags.get(tag, default)
+
+        def id3_get_side_effect(tag):
+            value = tags.get(tag)
+            if isinstance(value, (TIT2, TPE1, TALB, TPE2, TIT1, TOAL, TOPE, TPE3)):
+                return value
+            else:
+                return MockID3Tag(value)
+        
         mock_id3_instance.get.side_effect = id3_get_side_effect
         return mock_id3_instance
+    
     return apply_mock
