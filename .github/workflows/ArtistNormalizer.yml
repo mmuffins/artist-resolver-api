@@ -132,7 +132,7 @@ jobs:
     - name: Build and push
       uses: docker/build-push-action@v5
       with:
-        context: "${{ github.workspace }}/ArtistResolver.API"
+        context: "${{ github.workspace }}"
         file: "${{ github.workspace }}/ArtistResolver.API/Dockerfile"
         push: true
         platforms: linux/amd64
