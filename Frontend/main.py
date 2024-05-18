@@ -110,6 +110,11 @@ class TrackManagerGUI:
             formatted_artist_label = Label(frame, text=f"Artist: {formatted_artist}")
             formatted_artist_label.pack()
 
+            # Checkbox to enable or disable file updates
+            update_file_var = BooleanVar(value=track.update_file)
+            update_file_checkbox = Checkbutton(frame, text="Update File", variable=update_file_var, command=lambda t=track, v=update_file_var: self.update_update_file(t, v))
+            update_file_checkbox.pack()
+
             tree = ttk.Treeview(frame, columns=tuple(self.data_mapping.keys()), show='headings')
 
             # Calculate the appropriate height based on the number of rows
@@ -151,6 +156,11 @@ class TrackManagerGUI:
 
                 # Map the row to the corresponding objects for reference
                 self.item_to_object[row] = {"track": track, "artist_detail": artist_detail}
+
+    def update_update_file(self, track, var):
+        new_value = var.get()
+        if track.update_file != new_value:
+            track.update_file = new_value
 
     def save_changes(self):
         try:

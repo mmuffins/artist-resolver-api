@@ -564,3 +564,30 @@ async def test_get_artist_string_empty():
 
     # Assert
     assert concatenated_string == "", "Failed to handle empty artist details list correctly"
+
+@pytest.mark.asyncio
+async def test_save_files_mixed_update_file_property(mocker):
+    # Arrange
+    manager = TrackManager()
+
+    # Create mock TrackDetails with mixed update_file values
+    track1 = create_mock_trackdetails()
+    track2 = create_mock_trackdetails()
+    track1.update_file = True
+    track2.update_file = False
+    manager.tracks = [track1, track2]
+
+    # Mock apply_custom_tag_values and save_file_metadata methods
+    mocker.patch.object(track1, 'apply_custom_tag_values', new_callable=MagicMock)
+    mocker.patch.object(track2, 'apply_custom_tag_values', new_callable=MagicMock)
+    mocker.patch.object(track1, 'save_file_metadata', new_callable=AsyncMock)
+    mocker.patch.object(track2, 'save_file_metadata', new_callable=AsyncMock)
+
+    # Act
+    await manager.save_files()
+
+    # Assert
+    track1.apply_custom_tag_values.assert_called_once()
+    track2.apply_custom_tag_values.assert_not_called()
+    track1.save_file_metadata.assert_called_once()
+    track2.save_file_metadata.assert_not_called()
