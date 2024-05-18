@@ -41,7 +41,7 @@ namespace ArtistResolver.API
             }
             else
             {
-                string dbPath = Configuration.GetSection("Settings").GetSection("DBPath").Value;
+                string dbPath = Environment.GetEnvironmentVariable("DB_PATH") ?? Configuration.GetSection("Settings").GetSection("DBPath").Value;
                 services.AddDbContext<AppDbContext>(options =>
                 {
                     options.UseSqlite("Data Source=" + dbPath);
