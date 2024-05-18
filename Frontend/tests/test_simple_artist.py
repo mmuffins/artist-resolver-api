@@ -200,7 +200,14 @@ def test_generate_instance_hash():
 
 def test_split_artist():
     # Arrange
-    artist_string = "Artist1, Artist2 feat. Artist3 & Artist4, Character1 (CV: Artist5); Character2(CV.Artist6)"
+    artist_list = [
+        "Artist1",
+        "Artist2 feat. Artist3 & Artist4",
+        "Character1 (CV: Artist5); Character2(CV.Artist6); (Character 3)",
+        "Character4(CV.Artist7)",
+        "(CV: Artist8)",
+    ]
+    
     expected_result = [
         {"type": "Person", "include": True, "name": "Artist1"},
         {"type": "Person", "include": True, "name": "Artist2"},
@@ -210,17 +217,21 @@ def test_split_artist():
         {"type": "Character", "include": False, "name": "Character1"},
         {"type": "Person", "include": True, "name": "Artist6"},
         {"type": "Character", "include": False, "name": "Character2"},
+        {"type": "Character", "include": False, "name": "Character 3"},
+        {"type": "Person", "include": True, "name": "Artist7"},
+        {"type": "Character", "include": False, "name": "Character4"},
+        {"type": "Person", "include": True, "name": "Artist8"},
     ]
 
     # Act
-    result = SimpleArtistDetails.split_artist(artist_string)
+    result = SimpleArtistDetails.split_artist(artist_list)
 
     # Assert
     assert len(result) == len(expected_result), f"Expected {len(expected_result)} artists, got {len(result)}"
     for i in range(len(result)):
         assert result[i]["name"] == expected_result[i]["name"], f"Name mismatch at index {i}: expected {expected_result[i]['name']}, got {result[i]['name']}"
-        assert result[i]["type"] == expected_result[i]["type"], f"Type mismatch at index {i}: expected {expected_result[i]['type']}, got {result[i]['type']}"
-        assert result[i]["include"] == expected_result[i]["include"], f"Include mismatch at index {i}: expected {expected_result[i]['include']}, got {result[i]['include']}"
+        assert result[i]["type"] == expected_result[i]["type"], f"Type mismatch at index {i} (`{result[i]['name']}`): expected {expected_result[i]['type']}, got {result[i]['type']}"
+        assert result[i]["include"] == expected_result[i]["include"], f"Include mismatch at index {i} (`{result[i]['name']}`): expected {expected_result[i]['include']}, got {result[i]['include']}"
 
 @pytest.mark.asyncio
 @respx.mock(assert_all_mocked=True)
@@ -228,9 +239,15 @@ async def test_split_artist_string_into_simple_artist_objects(respx_mock):
     # Arrange
     manager = TrackManager()
     track = TrackDetails("/fake/path/file1.mp3", manager)
-    track.artist = "Artist1, Artist2 feat. Artist3 & Artist4; Character1 (CV: Artist5); Character2(CV.Artist6)"
     track.album_artist = "Various Artists"
     track.product = None
+    track.artist = [
+        "Artist1",
+        "Artist2 feat. Artist3 & Artist4",
+        "Character1 (CV: Artist5); Character2(CV.Artist6); (Character 3)",
+        "Character4(CV.Artist7)",
+        "(CV: Artist8)",
+    ]
 
     respx_mock.route(
         method="GET", 
@@ -247,14 +264,18 @@ async def test_split_artist_string_into_simple_artist_objects(respx_mock):
     ))
 
     expected_simple_artists = [
-        {'name': "Artist1", 'type': "Person"},
-        {'name': "Artist2", 'type': "Person"},
-        {'name': "Artist3", 'type': "Person"},
-        {'name': "Artist4", 'type': "Person"},
-        {'name': "Artist5", 'type': "Person"},
-        {'name': "Character1", 'type': "Character"},
-        {'name': "Artist6", 'type': "Person"},
-        {'name': "Character2", 'type': "Character"},
+        {"type": "Person", "name": "Artist1"},
+        {"type": "Person", "name": "Artist2"},
+        {"type": "Person", "name": "Artist3"},
+        {"type": "Person", "name": "Artist4"},
+        {"type": "Person", "name": "Artist5"},
+        {"type": "Character", "name": "Character1"},
+        {"type": "Person", "name": "Artist6"},
+        {"type": "Character", "name": "Character2"},
+        {"type": "Character", "name": "Character 3"},
+        {"type": "Person", "name": "Artist7"},
+        {"type": "Character", "name": "Character4"},
+        {"type": "Person", "name": "Artist8"},
     ]
 
     # Act

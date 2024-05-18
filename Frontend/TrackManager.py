@@ -1,5 +1,3 @@
-# TODO: add new columns to live database
-# TODO: Make type editable. Should be a dropdown with Person, Character, Group
 # TODO: check if aliases can be used for better naming predictions
 # TODO: fix that the popup to enter new values is floating in space
 # TODO: Infer album artist from file path
@@ -9,6 +7,7 @@
 # TODO: colors -> highlight colors that are different from the current id tag / were edited
 # TODO: include relation type in original artist_json from picard to be able to filter out sibling relation type
 # TODO: make gui display error if rest calls fail
+# TODO: Add buttons for common tasks, e.g. copy title to original title
 
 import hashlib
 import os
@@ -151,7 +150,7 @@ class SimpleArtistDetails(MbArtistDetails):
     return hashlib.sha256(unique_string.encode()).hexdigest()
 
   @staticmethod
-  def parse_simple_artist(artist_list: str, product: str, product_id: int) -> List['SimpleArtistDetails']:
+  def parse_simple_artist(artist_list: list[str], product: str, product_id: int) -> list['SimpleArtistDetails']:
     """
     Deserializes a string containing a list of artists into artist objects 
     """
@@ -197,13 +196,18 @@ class SimpleArtistDetails(MbArtistDetails):
     self.id = data['artistId']
 
   @staticmethod
-  def split_artist_list(artist):
+  def split_artist_list(artist_list: list[str]) -> list[str]:
     """
     Splits artist string by common delimiters like and, with or feat
     """
 
     regex = re.compile(r'\s?[,&;、×]\s?|\sand\s|\s?with\s?|\s?feat\.?(?:uring)?\s?')
-    return regex.split(artist)
+    result = []
+
+    for artist in artist_list:
+      result.extend(regex.split(artist))
+
+    return result
 
   @staticmethod
   def split_artist_cv(artist):
@@ -233,7 +237,7 @@ class SimpleArtistDetails(MbArtistDetails):
     return match.group(1) if match else None
 
   @staticmethod
-  def split_artist(artist):
+  def split_artist(artist: list[str]):
     """
     Splits artist string into individual artists
     """
@@ -247,7 +251,7 @@ class SimpleArtistDetails(MbArtistDetails):
     return split_list
 
   @staticmethod
-  def process_split_artist_parts(parts):
+  def process_split_artist_parts(parts: list[str]) -> list[str]:
     """
     Process parts of the artist string, splitting by CV and character types.
     """
@@ -256,11 +260,23 @@ class SimpleArtistDetails(MbArtistDetails):
 
     if len(parts) > 1:
       for part in parts:
+        # If artist is in brackets and starts with cv, e.g. (cv artist 1) it's a real person
         if part["name"].strip().lower().startswith("(cv"):
           part["name"] = SimpleArtistDetails.extract_cv_artist(part["name"])
+          continue
+        
+        # In all other cases it's either a character or group
+        part["type"] = "Character"
+        part["include"] = False
+    else:
+        if parts[i]["name"].strip().lower().startswith("(cv"):
+          parts[i]["name"] = SimpleArtistDetails.extract_cv_artist(parts[i]["name"])
         else:
-          part["type"] = "Character"
-          part["include"] = False
+          brackets_match = re.match(r'^\((.*)\)$', parts[i]["name"])
+          if brackets_match:
+            parts[i]["name"] = brackets_match.group(1)
+            parts[i]["type"] = "Character"
+            parts[i]["include"] = False
 
     return parts
 
@@ -281,7 +297,7 @@ class SimpleArtistDetails(MbArtistDetails):
       # the default product indicating that the track doesn't belong to a franchise is _
       product["name"] = "_"
     
-    resolved_product = [p for p in product_list if p["name"] == product["name"]]
+    resolved_product = [p for p in product_list if p["name"] == product["name"].replace(" ", "")]
 
     if resolved_product:
       return resolved_product[0]
@@ -303,17 +319,17 @@ class TrackDetails:
   }
 
   def __init__(self, file_path: str, manager):
-    self.file_path = file_path
-    self.manager = manager
-    self.title = None
-    self.artist = None
-    self.album = None
-    self.album_artist = None
-    self.grouping = None
-    self.original_album = None
-    self.original_artist = None
-    self.original_title = None
-    self.product = None
+    self.file_path: str = file_path
+    self.manager: TrackManager = manager
+    self.title: str = None
+    self.artist: List[str] = None
+    self.album: str = None
+    self.album_artist: str = None
+    self.grouping: str = None
+    self.original_album: str = None
+    self.original_artist: List[str] = None
+    self.original_title: str = None
+    self.product: str = None
     self.artist_relations = None
     self.update_file: bool = True
     self.mbArtistDetails: List[MbArtistDetails] = []
@@ -329,8 +345,35 @@ class TrackDetails:
     Returns a formatted string for all artists of the object
     """
 
-    formatted_strings = [artist.get_formatted_artist() for artist in self.mbArtistDetails if artist.include == True]
-    return "; ".join(formatted_strings)
+    return "; ".join(self.get_included_artist_list())
+  
+  def get_included_artist_list(self) -> str:
+    """
+    Returns a formatted string for all artists of the object
+    """
+
+    return [artist.get_formatted_artist() for artist in self.mbArtistDetails if artist.include == True]
+
+  @staticmethod
+  def get_id3_value(id3: id3.ID3, tag: str):
+    """
+    Returns the correct value for an id3 tag
+    """
+
+    # some tags commonly contain multiple values and need to be handled accordingly
+    value = id3.get(tag)
+    if not value:
+      return None
+    
+    match tag:
+      case "TPE1":
+        return value.text
+      case "TOPE":
+        return value.text
+      case _:
+        if(len(value.text) > 1):
+          raise ValueError(f"Tag {tag} contains unexpected array value {value.text}")
+        return (value.text)[0]
 
   async def read_file_metadata(self) -> None:
     """
@@ -339,7 +382,9 @@ class TrackDetails:
 
     self.id3 = await self.get_id3_object(self.file_path)
     for tag, mapping  in self.tag_mappings.items():
-      value = self.id3.get(tag, [''])[0]
+      # some metadata needs to be handled differently
+
+      value = TrackDetails.get_id3_value(self.id3, tag)
       setattr(self, mapping["property"], value)
 
     # the artist_relations array is not a specific ID3 tag but is stored as text in the general purpose TXXX frame
@@ -357,7 +402,7 @@ class TrackDetails:
     if self.artist_relations:
       self.mbArtistDetails = self.manager.parse_mbartist_json(self.artist_relations)
     else:
-      self.mbArtistDetails = await self.manager.parse_simple_artist(self)
+      self.mbArtistDetails = await self.manager.create_artist_details_from_simple_artist_track(self)
 
   async def get_id3_object(self, file_path: str):
     """
@@ -372,7 +417,15 @@ class TrackDetails:
     Applies customized values to the main tags
     """
 
-    self.artist = self.get_artist_string() or self.artist
+    # Some manually edited artists could contain multiple entries
+    # e.g. groups, or character-person combnations.
+    # Make sure to split on semicolon again to properly write these entries as
+    # separate id3 tags
+    artists = self.get_included_artist_list() or self.artist
+    split_artists = []
+    for entry in artists:
+      split_artists.extend([artist.strip() for artist in entry.split(';')])
+    self.artist = split_artists
 
   def save_file_metadata(self) -> None:
     """
@@ -383,7 +436,7 @@ class TrackDetails:
 
     for tag, mapping  in self.tag_mappings.items():
       value = getattr(self, mapping["property"])
-      file_value = self.id3.get(tag, [''])[0]
+      file_value = TrackDetails.get_id3_value(self.id3, tag)
 
       if value:
         if file_value != value:
@@ -481,8 +534,7 @@ class TrackManager:
     if mb_artist_details:
       artist.update_from_customization(mb_artist_details)
 
-
-  async def parse_simple_artist(self, track: TrackDetails) -> list[SimpleArtistDetails]:
+  async def create_artist_details_from_simple_artist_track(self, track: TrackDetails) -> list[SimpleArtistDetails]:
     """
     Reads track data to create a list of artist details, pushes it to the local artist_data list
     """
@@ -663,7 +715,7 @@ class TrackManager:
       raise ValueError("No parameters were provided to query.")
 
     async with httpx.AsyncClient() as client:
-      response = await client.get(f"{endpoint}?name={name}")
+      response = await client.get(f"{endpoint}?name={name.replace(" ", "")}")
       if response.status_code == 200:
         return response.json()
       else:
@@ -708,7 +760,7 @@ class TrackManager:
     params = {}
 
     if name:
-      params['name'] = name
+      params['name'] = name.replace(" ", "")
     if franchiseId:
       params['franchiseId'] = franchiseId
 
@@ -787,7 +839,7 @@ class TrackManager:
     endpoint = f"http://{TrackManager.MBARTIST_API_DOMAIN}:{TrackManager.MBARTIST_API_PORT}/{TrackManager.SIMPLE_ARTIST_ALIAS_API_ENDPOINT}"
     
     data = {
-      "Name": name,
+      "Name": name.replace(" ", ""),
       "artistid": artist_id,
       "franchiseid": franchise_id
     }
@@ -969,15 +1021,17 @@ async def send_put_request(data, url) -> None:
     print('Response:', response.text)
 
 async def main() -> None:
-  await seedData()
+  # await seedData()
   manager = TrackManager()
   dir = "C:/Users/email_000/Desktop/music/sample/nodetailsmultiple"
   dir = "C:/Users/email_000/Desktop/music/sample/detailsmultiple"
+  dir = "C:/Users/email_000/Desktop/music/sample/recall"
+  dir = "C:/Users/email_000/Desktop/music/sample/nodetails2"
   dir = "C:/Users/email_000/Desktop/music/sample/spiceandwolf"
-  dir = "C:/Users/email_000/Desktop/music/sample/nodetails"
+  dir = "C:/Users/email_000/Desktop/music/check/[2024.05.16] 学園アイドルマスター 初星学園 [MP3 320K]/clumsy trick"
   await manager.load_directory(dir)
   await manager.update_artists_info_from_db()
-  await manager.send_changes_to_db()
+  # await manager.send_changes_to_db()
   await manager.save_files()
 
 if __name__ == "__main__":
