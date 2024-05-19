@@ -1,6 +1,6 @@
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
-RUN mkdir -p /db && chmod 777 /db
 USER app
+RUN mkdir -p /db && chmod 777 /db
 WORKDIR /app
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
