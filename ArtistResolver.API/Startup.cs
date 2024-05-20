@@ -5,6 +5,7 @@ using ArtistResolver.API.Persistence.Repositories;
 using ArtistResolver.API.Services;
 using AutoMapper;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -58,6 +59,11 @@ namespace ArtistResolver.API
             services.AddScoped<IMbArtistRepository, MbArtistRepository>();
             services.AddScoped<IMbArtistService, MbArtistService>();
             services.AddAutoMapper(typeof(Startup));
+
+            services.AddHealthChecks()
+                .AddCheck<DatabaseHealthCheck>("Database", tags: new[] { "db", "all" });
+
+
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -77,6 +83,11 @@ namespace ArtistResolver.API
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
+                endpoints.MapHealthChecks("/health");
+                endpoints.MapHealthChecks("/health/db", new HealthCheckOptions
+                {
+                    Predicate = (check) => check.Tags.Contains("db")
+                });
             });
         }
     }
