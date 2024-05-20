@@ -59,7 +59,7 @@ namespace ArtistResolver.API.Controllers
         [HttpPost]
         public async Task<IActionResult> PostAsync([FromBody] SaveArtistResource resource)
         {
-            logger.LogInformation("POST /artist/ Artist:" + resource.Name + ")");
+            logger.LogInformation($"POST /artist/ Artist:{resource.Name}");
             
             resource.Name = resource.Name.Trim();
             if (!ModelState.IsValid)
