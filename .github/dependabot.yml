@@ -12,8 +12,9 @@ updates:
     groups:
       all-dependencies:
         patterns:
-		- "Microsoft.VisualStudio.Azure.Containers*
+	- "Microsoft.VisualStudio.Azure.Containers*
         - "Microsoft.EntityFrameworkCore*"
         - "Microsoft.AspNetCore*"
+	- "Microsoft.NET.Test.*"
         - "xunit*"
-		- AutoMapper
+	- AutoMapper
