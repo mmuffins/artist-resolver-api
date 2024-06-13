@@ -9,6 +9,7 @@ namespace ArtistResolver.API.Resources
         public string Name { get; set; }
         public string OriginalName { get; set; }
         public bool Include { get; set; }
+        public string Type { get; set; }
 
         public override string ToString()
         {

@@ -76,6 +76,7 @@ namespace ArtistResolver.API.Controllers
 
             resource.MbId = resource.MbId.Trim();
             resource.Name = resource.Name.Trim();
+            resource.Type = resource.Type.Trim();
             if (null  != resource.OriginalName)
             {
                 resource.OriginalName = resource.OriginalName.Trim();
