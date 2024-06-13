@@ -100,6 +100,7 @@ namespace Tests.Integrationtests
                     MbId = $"MbId-{i}-6666-7777-8888-999999999999",
                     Name = $"MbArtist {i}",
                     OriginalName = $"Original MbArtist {i}",
+                    Type = "Person",
                     Include = i % 2 == 0 // Alternate between true and false
                 };
 
@@ -167,7 +168,7 @@ namespace Tests.Integrationtests
         internal async Task<MbArtistResource> PostMbArtist(MbArtist artist)
         {
             var JsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            var postJson = new StringContent(JsonSerializer.Serialize(new { artist.MbId, artist.Name, artist.OriginalName, artist.Include }), Encoding.UTF8, "application/json");
+            var postJson = new StringContent(JsonSerializer.Serialize(new { artist.MbId, artist.Name, artist.OriginalName, artist.Include, artist.Type }), Encoding.UTF8, "application/json");
             HttpResponseMessage postResponse = await client.PostAsync(mbArtistEndpoint, postJson);
             postResponse.EnsureSuccessStatusCode();
 

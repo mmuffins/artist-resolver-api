@@ -14,5 +14,8 @@ namespace ArtistResolver.API.Resources
 
         [Required]
         public bool Include { get; set; }
+
+        [Required]
+        public string Type { get; set; }
     }
 }

@@ -15,6 +15,8 @@ namespace ArtistResolver.API.Domain.Models
         public string OriginalName { get; set; }
         [Required]
         public bool Include { get; set; }
+        [Required]
+        public string Type { get; set; }
 
         public override string ToString()
         {
