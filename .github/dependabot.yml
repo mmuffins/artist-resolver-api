@@ -18,3 +18,4 @@ updates:
         - "Microsoft.NET.Test.*"
         - "xunit*"
         - AutoMapper
+        - "coverlet.*"
