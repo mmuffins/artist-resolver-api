@@ -23,7 +23,7 @@ jobs:
       build_framework: net8.0
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v4
@@ -114,7 +114,7 @@ jobs:
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
       
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
   
     - name: Docker Setup QEMU
       uses: docker/setup-qemu-action@v3
