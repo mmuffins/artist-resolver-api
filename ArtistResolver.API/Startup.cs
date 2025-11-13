@@ -1,13 +1,12 @@
 using ArtistResolver.API.Domain.Repositories;
 using ArtistResolver.API.Domain.Services;
+using ArtistResolver.API.Mapping;
 using ArtistResolver.API.Persistence.Contexts;
 using ArtistResolver.API.Persistence.Repositories;
 using ArtistResolver.API.Services;
-using AutoMapper;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -58,7 +57,11 @@ namespace ArtistResolver.API
             services.AddScoped<IAliasService, AliasService>();
             services.AddScoped<IMbArtistRepository, MbArtistRepository>();
             services.AddScoped<IMbArtistService, MbArtistService>();
-            services.AddAutoMapper(typeof(Startup));
+            services.AddAutoMapper(cfg =>
+            {
+                cfg.AddProfile<ModelToResourceProfile>();
+                cfg.AddProfile<ResourceToModelProfile>();
+            });
 
             services.AddHealthChecks()
                 .AddCheck<DatabaseHealthCheck>("Database", tags: new[] { "db", "all" });
