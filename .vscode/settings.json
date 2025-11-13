@@ -1,0 +1,7 @@
+{
+  "editor.formatOnSave": true,
+  "dotnet.defaults.buildConfiguration": "Debug",
+  "dotnet.defaults.runtime": "win-x64",
+  "dotnet.defaults.framework": "net10.0",
+  "dotnet.defaults.version": "1.0.0"
+}
