@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 RUN mkdir -p /db && chmod 777 /db
 USER app
 WORKDIR /app
@@ -6,7 +6,7 @@ EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
 ENV DB_PATH=/db/artists.db
 
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["ArtistResolver.API/ArtistResolver.API.csproj", "ArtistResolver.API/"]
