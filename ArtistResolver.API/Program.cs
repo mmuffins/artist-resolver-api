@@ -23,10 +23,9 @@ namespace ArtistResolver.API
 
         public static IHost BuildWebHost(string[] args) =>
             Host.CreateDefaultBuilder(args)
-                .ConfigureWebHost(webHostBuilder =>
+                .ConfigureWebHostDefaults(webHostBuilder =>
                 {
-                    webHostBuilder
-                    .UseStartup<Startup>();
+                    webHostBuilder.UseStartup<Startup>();
                 })
                 .Build();
     }
