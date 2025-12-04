@@ -1,0 +1,73 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "dotnet restore",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "restore"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "dotnet publish",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "publish",
+        "ArtistResolver.API/ArtistResolver.API.csproj",
+        "--configuration",
+        "${config:dotnet.defaults.buildConfiguration}",
+        "--runtime",
+        "${config:dotnet.defaults.runtime}",
+        "--framework",
+        "${config:dotnet.defaults.framework}",
+        "--self-contained",
+        "false",
+        "-p:PublishSingleFile=false",
+        "-p:PublishTrimmed=false",
+        "-p:PublishReadyToRun=true",
+        "-p:Version=${config:dotnet.defaults.version}",
+        "-p:PackageVersion=${config:dotnet.defaults.version}",
+        "--output",
+        "${workspaceFolder}/publish"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "dotnet test",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "test",
+        "ArtistResolver.API.sln",
+        "--configuration",
+        "${config:dotnet.defaults.buildConfiguration}",
+        "--framework",
+        "${config:dotnet.defaults.framework}",
+        "--verbosity",
+        "normal"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "CI: restore → publish",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "dotnet restore",
+        "dotnet publish"
+      ],
+      "problemMatcher": [
+        "$eslint-compact"
+      ]
+    }
+  ]
+}
