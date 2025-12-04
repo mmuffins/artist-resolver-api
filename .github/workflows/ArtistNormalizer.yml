@@ -75,9 +75,10 @@ jobs:
           sleep 2
         done
 
+        docker logs artist-resolver-api-test
+
         if [ -z "${ready:-}" ]; then
           echo "Container did not report startup readiness" >&2
-          docker logs artist-resolver-api-test
           exit 1
         fi
 
