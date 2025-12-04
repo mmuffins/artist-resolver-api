@@ -68,6 +68,37 @@
       "problemMatcher": [
         "$eslint-compact"
       ]
+    },
+    {
+      "label": "podman build",
+      "type": "shell",
+      "command": "podman",
+      "args": [
+        "build",
+        "-f",
+        "ArtistResolver.API/Dockerfile",
+        "-t",
+        "artist-resolver-api:latest",
+        "${workspaceFolder}"
+      ],
+      "problemMatcher": [
+        "$eslint-compact"
+      ]
+    },
+    {
+      "label": "podman run",
+      "type": "shell",
+      "command": "podman",
+      "args": [
+        "run",
+        "--rm",
+        "-p",
+        "8080:8080",
+        "artist-resolver-api:latest"
+      ],
+      "problemMatcher": [
+        "$eslint-compact"
+      ]
     }
   ]
 }
