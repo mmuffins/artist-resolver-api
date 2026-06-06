@@ -59,7 +59,7 @@
       "problemMatcher": "$msCompile"
     },
     {
-      "label": "CI: restore → publish",
+      "label": "CI: restore - publish",
       "dependsOrder": "sequence",
       "dependsOn": [
         "dotnet restore",
