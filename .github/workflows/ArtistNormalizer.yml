@@ -23,7 +23,7 @@ jobs:
       build_framework: net10.0
     
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v5
@@ -57,7 +57,7 @@ jobs:
     needs: build
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: Build Docker image
       run: docker build -t artist-resolver-api:test -f "${{ github.workspace }}/ArtistResolver.API/Dockerfile" .
@@ -148,7 +148,7 @@ jobs:
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
       
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
   
     - name: Docker Setup QEMU
       uses: docker/setup-qemu-action@v4
